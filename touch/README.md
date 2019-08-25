@@ -30,7 +30,7 @@ cat $HOME/sys-paths.txt
 
 3. Configure TouchDesigner project to import "sys-paths.txt":
 
-Drop from the "touch" folder, drag-and-drop `_sys_paths.tox` to the root ("/") of your TouchDesigner project.
+From the "touch" folder, drag-and-drop `_sys_paths.tox` to the root ("/") of your TouchDesigner project.
 
 > To navigate to the root of the project, click on "/" in the address bar in TouchDesigner.
 
