@@ -57,7 +57,7 @@ snsClient = sess.client('sns')
 
 2. Attach created policy to the lambda execution role that needs to assume the role (cross-account access)
 
-	1. Go to Services -> IAM -> Roles -> <open your lambda function role>
+	1. Go to Services -> IAM -> Roles -> _open your lambda function role_
 	2. Attach policy created above
 
 3. To access DynamoDB tables, you need to create a session that assumes the role:
