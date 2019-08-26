@@ -9,7 +9,7 @@ To set up cross account inter-organization access:
 
     * [Create admin user](https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started_create-admin-group.html).
     * You'll need to run `aws configure` again to set up access keys for that user.
-    
+
 2. Assume role `arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access`
 
     * Add this to your `~/.aws/credentials` file:
@@ -19,7 +19,7 @@ To set up cross account inter-organization access:
     source_profile = default
     region = us-west-1
     ```
-    
+
 3. Test access by explicitly specifying profile in AWS CLI:
 
     * Lists all SNS topics `aws sns --profile=fssi2019-xacc-resource-access list-topics`
@@ -31,6 +31,12 @@ To set up cross account inter-organization access:
 sess = boto3.session.Session(profile_name='fssi2019-xacc-resource-access')
 snsClient = sess.client('sns')
 ```
+
+### How to use it in AWS Console
+
+1. Follow this [link](https://signin.aws.amazon.com/switchrole?account=756428767688&roleName=fssi2019-xacc-intraorg-resource-access&displayName=fssi2019-xaccount-access)
+2. Press "Switch Role"
+3. Now your user assumed role for cross-account access, try checking your DynanoDB tables list.
 
 ## AWS Resources List
 ### SNS Topics
