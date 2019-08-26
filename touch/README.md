@@ -2,20 +2,7 @@
 
 ## Setup TouchDesigner project for AWS
 
-1. First, make sure your environment is set up for AWS CLI:
-
-> Dont' forget to [create an administrator user](https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started_create-admin-group.html) and use its' creadentials in `aws configure`.
-
-```
-git clone https://github.com/remap/fssi2019-aws.git && cd fssi2019-aws
-virtualenv -p python3 env && source env/bin/activate
-pip install awscli boto3
-complete -C aws_completer aws
-aws configure
-```
-
-> This will be your AWS development environment. Every time you open new terminal window, you need to activate it by `cd`-ing into "fssi2019-aws" folder and running `source env/bin/activate`.
-
+1. First, make sure your environment is [set up for AWS CLI](../README.md#AWS_CLI_Set_Up).
 2. Now let's make sure you have all your Python paths exported into a file:
 
 ```

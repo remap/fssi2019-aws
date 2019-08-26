@@ -1,6 +1,20 @@
 # fssi2019-aws
 AWS code for FSSI 2019
 
+## AWS CLI Set up
+
+> Dont' forget to [create an administrator user](https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started_create-admin-group.html) and use its' creadentials in `aws configure`.
+
+```
+git clone https://github.com/remap/fssi2019-aws.git && cd fssi2019-aws
+virtualenv -p python3 env && source env/bin/activate
+pip install awscli boto3
+complete -C aws_completer aws jq
+aws configure
+```
+
+> This will be your AWS development environment. Every time you open new terminal window, you need to activate it by `cd`-ing into "fssi2019-aws" folder and running `source env/bin/activate`.
+
 ## Cross Account Inter-Organization Access
 
 To set up cross account inter-organization access:
