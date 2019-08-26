@@ -17,8 +17,10 @@ This lambda is used to process incoming exposure vectors (from exhibits).
 On trigger:
 
 1. DB fetches
-  1.1. Retrieve exhibit occupancy from `fssi2019-dynamodb-occupancy`
-  1.2. Retrieve visitor exposures from `fssi2019-dynamodb-visitor_exposure_ts`
+
+    1.1. Retrieve exhibit occupancy from `fssi2019-dynamodb-occupancy`
+    
+    1.2. Retrieve visitor exposures from `fssi2019-dynamodb-visitor_exposure_ts`
 2. Calculate per-visitor exposures by some vector operation /TBD/
 3. Store new exposure in `fssi2019-dynamodb-visitor_exposure_ts`
 4. Publish exposures for the experience - both per-user breakdown and aggregate (average)
