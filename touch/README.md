@@ -2,7 +2,7 @@
 
 ## Setup TouchDesigner project for AWS
 
-1. First, make sure your environment is [set up for AWS CLI](../README.md#AWS_CLI_Set_Up).
+1. First, make sure your environment is [set up for AWS CLI](../README.md#aws-cli-set-up).
 2. Now let's make sure you have all your Python paths exported into a file:
 
 ```
