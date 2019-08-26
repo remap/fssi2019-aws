@@ -25,7 +25,7 @@ To set up cross account inter-organization access:
     * Lists all SNS topics `aws sns --profile=fssi2019-xacc-resource-access list-topics`
     * Lists all DynamoDB tables `aws dynamodb --profile=fssi2019-xacc-resource-access list-tables`
 
-### How to use it in `boto3`
+### How to use it in `boto3` locally
 
 ```
 sess = boto3.session.Session(profile_name='fssi2019-xacc-resource-access')
@@ -37,6 +37,49 @@ snsClient = sess.client('sns')
 1. Follow this [link](https://signin.aws.amazon.com/switchrole?account=756428767688&roleName=fssi2019-xacc-intraorg-resource-access&displayName=fssi2019-xaccount-access)
 2. Press "Switch Role"
 3. Now your user assumed role for cross-account access, try checking your DynanoDB tables list.
+
+### How to use it in AWS Lambda
+
+> (from [here](https://aws.amazon.com/premiumsupport/knowledge-center/lambda-function-assume-iam-role/))
+
+1. [Create this Policy](https://console.aws.amazon.com/iam/home#/policies) named `fssi2019-iam-policy-xacc-intraorg-resource-access`:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": {
+        "Effect": "Allow",
+        "Action": "sts:AssumeRole",
+        "Resource": "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
+    }
+}
+```
+
+2. Attach created policy to the lambda execution role that needs to assume the role (cross-account access)
+
+	1. Go to Services -> IAM -> Roles -> <open your lambda function role>
+	2. Attach policy created above
+
+3. To access DynamoDB tables, you need to create a session that assumes the role:
+```
+    stsConnection = boto3.client('sts')
+    acctB = stsConnection.assume_role(
+        RoleArn="arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access",
+        RoleSessionName="cross_acct_lambda"
+    )
+    ACCESS_KEY = acctB['Credentials']['AccessKeyId']
+    SECRET_KEY = acctB['Credentials']['SecretAccessKey']
+    SESSION_TOKEN = acctB['Credentials']['SessionToken']
+
+    dynamoDbClient = boto3.client(
+        'dynamodb',
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        aws_session_token=SESSION_TOKEN
+    )
+
+    print(dynamoDbClient.list_tables())
+```
 
 ## AWS Resources List
 ### SNS Topics
