@@ -50,11 +50,11 @@ In order for this to work, this module must be place inside "local" component (c
 
 ### Functions list
 
-Every function is documented: to access function full documentation use [docstrings](https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring), for example in Textport, type (assuming your modules is in "/project1/local") `print(mod('/project1/local/modules/utils').setOpError.__doc__)`.
+Every function is documented: to access function full documentation use [docstrings](https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring), for example in Textport, type (assuming your modules is in "/project1/local") `print(mod('/project1/local/modules/td_utils').setOpError.__doc__)`.
 
-* `mod.utils.setOpError()` -- sets operator error message;
-* `mod.utils.clearOpError()` -- clears operator error message;
-* `mod.utils.runAsync()` -- runs function asynchronously in a separate thread and delivers result through the supplied callback.
+* `mod.td_utils.setOpError()` -- sets operator error message;
+* `mod.td_utils.clearOpError()` -- clears operator error message;
+* `mod.td_utils.runAsync()` -- runs function asynchronously in a separate thread and delivers result through the supplied callback.
 
 ## sns_pub.tox
 
