@@ -45,7 +45,7 @@ def updateExposure(exposureV, emissionV):
     :return: Updated visitor exposure vector
     '''
 
-    return exposureV + emissionV
+    return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
     # print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
@@ -69,6 +69,7 @@ def lambda_handler(event, context):
         experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
 
         # for each user in the experience -- update their exposure vector
+        experienceAggregate = [experienceState.emissionVector_]
         for visitorId in experienceOccupancy:
             # first -- retrieve current exposure vector
             visitorExposure = getVisitorExposure(visitorId)
@@ -80,11 +81,9 @@ def lambda_handler(event, context):
             # print('UPDATED VISITOR EXPOSURE', updatedExposure)
             # save visitor exposure back to db
             writeVisitorExposure(visitorId, updatedExposure)
-
-            # calculate experience aggregate exposure (this includes emission + all visitors exposures)
-            experienceAggregateExposure = experienceAggregateExposure + visitorExposure
+            experienceAggregate.append(visitorExposure)
         # write aggregate experience exposure
-        writeExperienceExposure(experienceState.experienceId_, experienceAggregateExposure)
+        writeExperienceExposure(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
     except:
         type, err, tb = sys.exc_info()
         print('caught exception:', err)

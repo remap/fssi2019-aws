@@ -58,13 +58,15 @@ class FssiResources():
         VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
 
 class KeywordState():
-    def __init__(self, keyword, dictOrIntensity, sentiment = None):
-        if sentiment and isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
+    def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
+        if isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
             self.keyword_ = keyword
             self.intensity_ = dictOrIntensity
             self.sentiment_ = sentiment
-        elif dictOrIntensity and isinstance(dictOrIntensity, dict):
+        elif isinstance(dictOrIntensity, dict):
             self.keyword_ = keyword
+            self.intensity_ = 0.
+            self.sentiment_ = 1.
             if 'intensity' in dictOrIntensity:
                 self.intensity_ = dictOrIntensity['intensity']
             if 'sentiment' in dictOrIntensity:
@@ -98,6 +100,32 @@ class KeywordState():
     def cummulateSentiment(cls, s1, s2):
         return (s1 + s2)/2
 
+    @classmethod
+    def simpleAverage(cls, kwStates):
+        averaged = []
+        if len(kwStates) > 0:
+            stats = {}
+            for kws in kwStates:
+                if kws.keyword_ in stats:
+                    # stats[kws.keyword_]['num'] += 1.
+                    stats[kws.keyword_]['intensities'].append(kws.intensity_)
+                    stats[kws.keyword_]['sentiments'].append(kws.sentiment_)
+                else:
+                    stats[kws.keyword_] = {'intensities': [kws.intensity_], 'sentiments': [kws.sentiment_]}
+            for k,stat in stats.items():
+                iAvg = KeywordState.averageIntensity(stat['intensities'])
+                sAvg = KeywordState.averageSentiment(stat['sentiments'])
+                averaged.append(KeywordState(k, iAvg, sAvg))
+        return averaged
+
+    @classmethod
+    def averageIntensity(cls, intensities):
+        return sum(intensities) / len(intensities)
+
+    @classmethod
+    def averageSentiment(cls, sentiments):
+        return sum(sentiments) / len(sentiments)
+
 class EmissionVector():
     def __init__(self, arg):
         self.timestamp_ = None
@@ -125,6 +153,9 @@ class EmissionVector():
             emissionV[kwState.keyword_] = kwState.encode()
         return emissionV
 
+    def kwStates(self):
+        return list(self.kwStates_.values())
+
     def items(self):
         return self.kwStates_.items()
 
@@ -149,6 +180,13 @@ class EmissionVector():
             resultV.append(kws)
         return resultV
 
+    @classmethod
+    def simpleAverage(cls, vectors):
+        allKwStates = []
+        for v in vectors:
+            allKwStates.extend(v.kwStates())
+        averaged = KeywordState.simpleAverage(allKwStates)
+        return EmissionVector(averaged)
 
 ExposureVector = EmissionVector
 
