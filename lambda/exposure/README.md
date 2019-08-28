@@ -13,6 +13,22 @@ This lambda is used to process incoming exposure vectors (from exhibits).
 * SNS ARN: `arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission`
 * SNS Subscription ARN: `arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission:92d85985-87c8-4f1a-92dd-82fc6b5b3f41`
 
+### Input Format
+
+The lambda expects *experience emission* dictionary placed as a string in the "Message" field of SNS notification. The format of the dictionary:
+
+```
+{
+	"experience_id" : <experience_id>,
+	"state" : {
+		"keyword1" : { "intensity": float_value, "sentiment": float_value }
+		"keyword2" : { "intensity": float_value, "sentiment": float_value }
+		...
+		"keywordN" : { "intensity": float_value, "sentiment": float_value }
+	}
+}
+```
+
 ## Processing
 On trigger:
 
