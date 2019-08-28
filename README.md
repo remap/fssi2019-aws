@@ -9,7 +9,7 @@ AWS code for FSSI 2019
 git clone https://github.com/remap/fssi2019-aws.git && cd fssi2019-aws
 virtualenv -p python3 env && source env/bin/activate
 pip install awscli boto3
-complete -C aws_completer aws jq
+complete -C aws_completer aws
 aws configure
 ```
 
