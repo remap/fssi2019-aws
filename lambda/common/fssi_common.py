@@ -1,4 +1,7 @@
+import time
 import boto3
+import copy
+from decimal import Decimal
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
@@ -11,3 +14,157 @@ acctB = stsConnection.assume_role(
 ACCESS_KEY = acctB['Credentials']['AccessKeyId']
 SECRET_KEY = acctB['Credentials']['SecretAccessKey']
 SESSION_TOKEN = acctB['Credentials']['SessionToken']
+
+dynamoDbClient = boto3.client(
+    'dynamodb',
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY,
+    aws_session_token=SESSION_TOKEN
+)
+
+dynamoDbResource = boto3.resource(
+    'dynamodb',
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY,
+    aws_session_token=SESSION_TOKEN
+)
+
+def timeseriesGetLatestForKey(tableName, keyName, keyValue):
+    response = dynamoDbClient.query(TableName=tableName,
+                         KeyConditionExpression="{} = :v_id".format(keyName),
+                         ExpressionAttributeValues={":v_id": {'S': keyValue}},
+                         Select='ALL_ATTRIBUTES',
+                         Limit=1,
+                         ScanIndexForward=False)
+    return response
+
+def timeseriesAdd(tableName, records):
+    table = dynamoDbResource.Table(tableName)
+    itemDict = records
+    itemDict['timestamp'] = Decimal(time.time())
+    table.put_item(Item = itemDict)
+
+class FssiResources():
+    class DynamoDB():
+        ExperienceEmissionTs = "fssi2019-dynamodb-experience_emission_ts"
+        ExperienceExposureTs = "fssi2019-dynamodb-experience_exposure_ts"
+        Experience = "fssi2019-dynamodb-experience"
+        Folksonomy = "fssi2019-dynamodb-folksonomy"
+        KeywordRelevanceTs = "fssi2019-dynamodb-keyword_relevance_ts"
+        Occupancy = "fssi2019-dynamodb-occupancy"
+        Pavilion = "fssi2019-dynamodb-pavilion"
+        Visitor = "fssi2019-dynamodb-visitor"
+        VisitorEventTs = "fssi2019-dynamodb-visitor_event_ts"
+        VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
+
+class KeywordState():
+    def __init__(self, keyword, dictOrIntensity, sentiment = None):
+        if sentiment and isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
+            self.keyword_ = keyword
+            self.intensity_ = dictOrIntensity
+            self.sentiment_ = sentiment
+        elif dictOrIntensity and isinstance(dictOrIntensity, dict):
+            self.keyword_ = keyword
+            if 'intensity' in dictOrIntensity:
+                self.intensity_ = dictOrIntensity['intensity']
+            if 'sentiment' in dictOrIntensity:
+                self.sentiment_ = dictOrIntensity['sentiment']
+        elif isinstance(keyword, KeywordState):
+            self.keyword_ = keyword.keyword_
+            self.intensity_ = keyword.intensity_
+            self.sentiment_ = keyword.sentiment_
+        else:
+            raise ValueError('bad arguments in KeywordState constructor')
+
+    def encode(self):
+        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
+        # return [ self.intensity_, self.sentiment_ ]
+
+    def __add__(self, other):
+        if self.keyword_ == other.keyword_:
+            i = KeywordState.cummulateIntensity(self.intensity_, other.intensity_)
+            s = KeywordState.cummulateSentiment(self.sentiment_, other.sentiment_)
+            return KeywordState(self.keyword_, i, s)
+        raise ValueError("can't add up incompatible keyword states: {} and {}".format(self.keyword_, other.keyword_))
+
+    def __repr__(self):
+        return repr(self.encode())
+
+    @classmethod
+    def cummulateIntensity(cls, i1, i2):
+        return (i1 + i2)/2
+
+    @classmethod
+    def cummulateSentiment(cls, s1, s2):
+        return (s1 + s2)/2
+
+class EmissionVector():
+    def __init__(self, arg):
+        self.timestamp_ = None
+        self.kwStates_ = {}
+        if isinstance(arg, dict):
+            for kw, kwDict in arg.items():
+                self.kwStates_[kw] = KeywordState(kw,kwDict)
+        elif isinstance(arg, list):
+            for kws in arg:
+                self.kwStates_[kws.keyword_] = kws
+        elif isinstance(arg, EmissionVector):
+            self.kwStates_ = copy.deepcopy(arg.kwStates_)
+        else:
+            raise ValueError('bad argument supplied to EmissionVector constructor: {}. must be dict or list'.format(arg))
+
+    def append(self, keywordState):
+        if keywordState.keyword_ in self.kwStates_:
+            self.kwStates_[keywordState.keyword_] += keywordState
+        else:
+            self.kwStates_[keywordState.keyword_] = keywordState
+
+    def encode(self):
+        emissionV = {}
+        for kw, kwState in self.kwStates_.items():
+            emissionV[kwState.keyword_] = kwState.encode()
+        return emissionV
+
+    def items(self):
+        return self.kwStates_.items()
+
+    def __setitem__(self, key, item):
+        self.kwStates_[key] = item
+
+    def __getitem__(self, key):
+        return self.kwStates_[key]
+
+    def __add__(self,other):
+        return EmissionVector.cummulateVectors(self, other)
+
+    def __repr__(self):
+        return repr(self.encode())
+
+    @classmethod
+    def cummulateVectors(cls, v1, v2):
+        resultV = EmissionVector([])
+        for kw, kws in v1.items():
+            resultV.append(kws)
+        for kw, kws in v2.items():
+            resultV.append(kws)
+        return resultV
+
+
+ExposureVector = EmissionVector
+
+class ExperienceState():
+    ExperienceIdKey='experience_id'
+    ExperienceStateKey='state'
+
+    def __init__(self, dict):
+        if not (ExperienceState.ExperienceIdKey in dict and ExperienceState.ExperienceStateKey in dict):
+            raise ValueError('malformed experience state message: {}'.format(dict))
+        self.experienceId_ = dict[ExperienceState.ExperienceIdKey]
+        self.emissionVector_ = EmissionVector(dict[ExperienceState.ExperienceStateKey])
+
+    def encode(self):
+        return { ExperienceState.ExperienceIdKey : self.experienceId_,
+                 ExperienceState.ExperienceStateKey : self.emissionVector_.encode()}
+
+    def __repr__(self):
+        return repr(self.encode())
