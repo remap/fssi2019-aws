@@ -6,15 +6,16 @@ import time
 from fssi_common import ACCESS_KEY, SECRET_KEY, SESSION_TOKEN
 
 def lambda_handler(event, context):
-    if not ('visitor_id' in event):
+    msgBody = json.loads(event['Records'][0]['Sns']['Message'])
+    if not ('visitor_id' in msgBody):
         return { 'statusCode': 400,
                  'body': "The input event must have a visitor_id" }
-    visitor_id = event['visitor_id']
+    visitor_id = msgBody['visitor_id']
 
-    if not ('experience_id' in event):
+    if not ('experience_id' in msgBody):
         return { 'statusCode': 400,
                  'body': "The input event must have a experience_id" }
-    experience_id = event['experience_id']
+    experience_id = msgBody['experience_id']
 
     dynamodb = boto3.resource(
         'dynamodb',
@@ -38,7 +39,7 @@ def lambda_handler(event, context):
             latestEvent = e
 
     print("Debug: latestEvent: " + str(latestEvent))
-    
+
     # Figure out whether the event means that the visitor is entering the experience.
     if latestEvent == None:
         isEntering = True
