@@ -45,7 +45,7 @@ if [ $? -ne 0 ]; then
 fi
 
 mkdir -p ~/.aws
-cmd="ZWNobyAtZSAiW2RlZmF1bHRdXG5hd3NfYWNjZXNzX2tleV9pZCA9IEFLSUEzQUhWTEFIRUk0R00yNk83XG5hd3Nfc2VjcmV0X2FjY2Vzc19rZXkgPSBxMWdpaTdkOU1KZkdQdndIZEpGVjJGRWtyQmt0akxsKzVvRFFsaW1TXG5yZWdpb249dXMtd2VzdC0xIiA+IH4vLmF3cy9jcmVkZW50aWFscwo="
+cmd="ZWNobyAtZSAiW2Zzc2kyMDE5LXJlYWRvbmx5XVxuYXdzX2FjY2Vzc19rZXlfaWQgPSBBS0lBM0FIVkxBSEVJNEdNMjZPN1xuYXdzX3NlY3JldF9hY2Nlc3Nfa2V5ID0gcTFnaWk3ZDlNSmZHUHZ3SGRKRlYyRkVrckJrdGpMbCs1b0RRbGltU1xucmVnaW9uPXVzLXdlc3QtMSIgPj4gfi8uYXdzL2NyZWRlbnRpYWxzCg=="
 eval "`echo $cmd | base64 --decode`"
 
 echo "--> setup completed"
