@@ -4,4 +4,4 @@ ENV=$CWD/../env
 TOUCH=$HOME
 # PYMODULES=`ls $ENV/lib/python3.7/site-packages/`
 # export PYTHONPATH=$PYTHONPATH:$PYMODULES
-echo -e "import sys\nfor p in sys.path:  print(p)" | python > $TOUCH/sys-paths.txt
+echo -e "import sys\nfor p in sys.path:  print(p)" | ${ENV}/bin/python > $TOUCH/sys-paths.txt
