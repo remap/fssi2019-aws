@@ -3,9 +3,9 @@ import boto3
 import sys
 import uuid
 import os
+from fssi_common import *
 
 def lambda_handler(event, context):
-    s3BucketName = 'fssi2019-s3-ingest'
     try:
         print('EVENT ', str(event))
         print('CONTEXT ', str(context))
@@ -14,7 +14,7 @@ def lambda_handler(event, context):
         fileName, fileExtension = os.path.splitext(requestFileName)
         uploadKey = 'upload/' + str(uuid.uuid4()) + fileExtension
         s3 = boto3.client('s3')
-        presignedUrl = s3.generate_presigned_url('put_object', {'Bucket':s3BucketName ,'Key':uploadKey,  'ContentType':'binary/octet-stream'})
+        presignedUrl = s3.generate_presigned_url('put_object', {'Bucket':FssiResources.S3Bucket.Ingest ,'Key':uploadKey,  'ContentType':'binary/octet-stream'})
 
         print('GENERATED PRESIGNED URL for ', requestFileName, presignedUrl)
 

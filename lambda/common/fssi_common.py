@@ -57,6 +57,9 @@ class FssiResources():
         VisitorEventTs = "fssi2019-dynamodb-visitor_event_ts"
         VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
 
+    class S3Bucket():
+        Ingest = "fssi2019-s3-ingest"
+
 class KeywordState():
     def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
         if isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
