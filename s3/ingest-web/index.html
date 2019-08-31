@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>
+		Async file upload with jQuery
+	</title>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">  </script>
+</head>
+
+<body>
+	<div align="center">
+		<div id="myform">
+			<div >
+				<input type="file" id="file" name="file" />
+				<input type="button" class="button" value="Upload"
+						id="but_upload">
+			</div>
+		</div>
+	</div>
+
+	<script type="text/javascript">
+        function uploadToS3(signedUrl, file){
+            console.log('S3 upload to', signedUrl);
+
+            $.ajax({
+                type: "PUT",
+                url: String(signedUrl),
+                data: file,
+                crossDomain: true,
+                contentType: 'binary/octet-stream', // this should match ContentType you used to generate signed uploadUrl in lambda
+                processData: false,
+                success: function(data){
+                    console.log('file successfully uploaded');
+                },
+                error: function(data){
+                    console.log('error uploading file', data);
+                }
+            });
+        }
+
+		$(document).ready(function() {
+            var GATEWAY_URL = 'https://j7f6n2sy1e.execute-api.us-west-1.amazonaws.com/stage';
+
+			$("#but_upload").click(function() {
+				var file = $('#file')[0].files[0];
+
+                if (file)
+                {
+                    // get signed URL for the file
+                    var requestUrl = GATEWAY_URL + '?name='+escape(file.name);
+                    console.log('upload request',requestUrl);
+                    $.ajax({
+                        type: "GET",
+                        url: requestUrl,
+                        crossDomain: true,
+                        contentType: 'application/json',
+                        success: function(data){
+                            var uploadUrl = data['uploadUrl']
+                            uploadToS3(uploadUrl, file);
+                        },
+                        error: function(data){
+                            console.log('error getting upload URL', data);
+                        }
+                    });
+                }
+                else
+                    console.log('No file selected');
+			});
+		});
+	</script>
+</body>
+
+</html>
