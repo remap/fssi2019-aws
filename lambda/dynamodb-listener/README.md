@@ -17,7 +17,7 @@ This lambda processes DynamoDB Stream events and publishes SNS notifications.
 
 ```
 aws dynamodb update-table \
-	--table-name <table-name>
+	--table-name <table-name> \
 	--stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
 ```
 
@@ -44,7 +44,7 @@ aws lambda create-event-source-mapping \
 
 ### Input Format
 
-The lambda receives DynamoDB Stream notifications (can be batched), that might look like this:
+Lambda receives DynamoDB Stream notifications (can be batched), that might look like this:
 
 ```
 {
