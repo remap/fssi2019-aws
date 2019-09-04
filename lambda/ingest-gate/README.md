@@ -1,6 +1,6 @@
 # Ingest Gate Lambda
 
-This lambda is used for content ingestion through the [web interface](s3/ingest-web).
+This lambda is used for content ingestion through the [web interface](https://github.com/remap/fssi2019-aws/tree/master/s3/ingest-web).
 
 ## AWS Resource
 
