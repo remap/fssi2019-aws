@@ -4,6 +4,8 @@ import copy
 import json
 from decimal import Decimal
 import sys, traceback
+import uuid
+from datetime import datetime
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
@@ -54,6 +56,8 @@ class FssiResources():
         VisitorEventTs = "fssi2019-dynamodb-visitor_event_ts"
         VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
 
+        MediaUserMeta = "fssi2019-dynamodb-media-user-meta"
+
     class S3Bucket():
         Ingest = "fssi2019-s3-ingest"
     class Sns():
@@ -98,6 +102,18 @@ def timeseriesAdd(tableName, records):
     itemDict = records
     itemDict['timestamp'] = Decimal(time.time())
     table.put_item(Item = itemDict)
+
+def getMediaItemUuid():
+    return str(uuid.uuid4())
+
+def makeMediaMetaItem(itemId, s3BucketName):
+    return {
+        'id' : itemId,
+        'bucket': s3BucketName,
+        'created': str(datetime.now()),
+        'userMeta': {}
+    }
+
 
 ################################################################################
 # LAMBDA HELPERS
