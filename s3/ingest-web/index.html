@@ -13,13 +13,56 @@
 		<div id="myform">
 			<div >
 				<input type="file" id="file" name="file" />
-				<input type="button" class="button" value="Upload"
-						id="but_upload">
+				<input type="button" class="button" value="Upload" id="but_upload">
+				<br/>
+				<br/>
+				<input type="button" class="button" value="Custom JSON" id="but_toggle_custom_json">
+				<div id="user_meta">
+					<ul id="taglist">
+						<li id="tagitem">
+							<input type="field" id="tag" name="tag" />
+							<div id="ival"> </div>
+							<input type="range" min="0" max="100" value="50" class="slider" id="islider">
+						</li>
+					</ul>
+					<input type="button" class="button" value="Add" id="but_addtag">
+				</div>
+				<div id="custom_json">
+					<textarea rows="40" cols="120"></textarea>
+				</div>
+				<textarea rows="20" cols="120" id="log"></textarea>
 			</div>
 		</div>
 	</div>
 
 	<script type="text/javascript">
+		function trace(text){
+			var textArea = document.getElementById('log');
+			var now = (window.performance.now() / 1000).toFixed(3);
+
+			if (textArea)
+				textArea.value += now+'\tINFO: \t' + JSON.stringify(text) + '\n';
+
+			console.log(text);
+		}
+
+		function logError(err){
+			var textArea = document.getElementById('log');
+			var now = (window.performance.now() / 1000).toFixed(3);
+			textArea.value += now + '\tERROR:\t' + err.toString() + '\n';
+			console.error(err);
+		}
+
+		function hookupSlider(liItem) {
+			var slider = liItem.querySelector('#islider');
+			var output = liItem.querySelector('#ival');
+			output.innerHTML = slider.value/100;
+			slider.oninput = function() {
+		  		output.innerHTML = this.value/100;
+			}
+		}
+
+		hookupSlider(document.querySelector('#tagitem'));
         function uploadToS3(signedUrl, file){
             console.log('S3 upload to', signedUrl);
 
@@ -32,24 +75,97 @@
                 processData: false,
                 success: function(data){
                     console.log('file successfully uploaded');
+					trace('file uploaded', file.name)
                 },
                 error: function(data){
                     console.log('error uploading file', data);
+					logError(data);
                 }
             });
         }
 
+		function getTags(){
+			var tags = {};
+
+			if (document.querySelector('#user_meta').style.display != 'none')
+				$("#taglist li").each(function(idx, liItem){
+					var value = liItem.querySelector('#ival').innerText;
+					var tag = liItem.querySelector('#tag').value;
+
+					if (tag != "" && !(tag in tags))
+					{
+						tags[tag] = value;
+						console.log('tag', tag, 'value', value);
+					}
+				});
+			else {
+				try {
+					tags = JSON.parse(document.querySelector('#custom_json textarea').value);
+				}
+				catch(err)
+				{
+					console.log('invalid JSON supplied', err);
+					logError(err);
+				}
+			}
+
+			return tags;
+		}
+
 		$(document).ready(function() {
             var GATEWAY_URL = 'https://j7f6n2sy1e.execute-api.us-west-1.amazonaws.com/stage';
 
+			document.querySelector("#custom_json").style.display = 'none';
+
+			$("#but_toggle_custom_json").click(function(){
+				var customJsonDiv = document.querySelector("#custom_json");
+				var hashtagsDiv = document.querySelector("#user_meta");
+
+				if (customJsonDiv.style.display === 'none')
+				{
+					customJsonDiv.style.display = 'block';
+					hashtagsDiv.style.display = 'none';
+					document.querySelector("#but_toggle_custom_json").value = "Tags";
+				}
+				else
+				{
+					customJsonDiv.style.display = 'none';
+					hashtagsDiv.style.display = 'block';
+					document.querySelector("#but_toggle_custom_json").value = "Custom JSON";
+				}
+			});
+
+			$("#but_addtag").click(function() {
+				var last = document.querySelector("#taglist li:last-child");
+				if (last.querySelector('#tag').value != '')
+				{
+					var clone = last.cloneNode(true);
+					hookupSlider(clone);
+
+					document.getElementById("taglist").appendChild(clone);
+					clone.querySelector('#tag').focus();
+					clone.querySelector('#tag').select();
+				}
+			});
+
 			$("#but_upload").click(function() {
 				var file = $('#file')[0].files[0];
+				var tags = getTags();
 
                 if (file)
                 {
+					console.log('uploading file', file.name, 'with tags', String(tags));
+					trace('uploading file ' + file.name + ' with tags ' + JSON.stringify(tags));
+
                     // get signed URL for the file
                     var requestUrl = GATEWAY_URL + '?name='+escape(file.name);
+
+					if (Object.keys(tags).length)
+						requestUrl += '&user_meta='+escape(btoa(JSON.stringify(tags)));
+
                     console.log('upload request',requestUrl);
+					trace('upload request '+requestUrl);
+
                     $.ajax({
                         type: "GET",
                         url: requestUrl,
@@ -61,11 +177,15 @@
                         },
                         error: function(data){
                             console.log('error getting upload URL', data);
+							trace('error retrieving upload URL '+String(data));
                         }
                     });
                 }
                 else
+				{
                     console.log('No file selected');
+					trace('no file selected');
+				}
 			});
 		});
 	</script>
