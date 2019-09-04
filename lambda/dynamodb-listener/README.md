@@ -1,4 +1,4 @@
-# Exposure Lambda
+# DynamoSB Stream Listener Lambda
 
 This lambda processes DynamoDB Stream events and publishes SNS notifications.
 
