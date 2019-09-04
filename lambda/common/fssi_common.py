@@ -56,6 +56,7 @@ class FssiResources():
         VisitorEventTs = "fssi2019-dynamodb-visitor_event_ts"
         VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
 
+        MediaUserMetaPreload = "fssi2019-dynamodb-media-user-meta-preload"
         MediaUserMeta = "fssi2019-dynamodb-media-user-meta"
 
     class S3Bucket():

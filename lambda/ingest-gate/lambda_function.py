@@ -34,7 +34,7 @@ def lambda_handler(event, context):
         if len(tags):
             userMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
             userMeta['userMeta'] = tags
-            userMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaUserMeta)
+            userMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaUserMetaPreload)
             userMetaTable.put_item(Item = userMeta)
 
         return {
