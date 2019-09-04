@@ -23,6 +23,8 @@
 							<input type="field" id="tag" name="tag" />
 							<div id="ival"> </div>
 							<input type="range" min="0" max="100" value="50" class="slider" id="islider">
+							<div id="sval"> </div>
+							<input type="range" min="0" max="100" value="50" class="slider" id="sslider">
 						</li>
 					</ul>
 					<input type="button" class="button" value="Add" id="but_addtag">
@@ -53,16 +55,23 @@
 			console.error(err);
 		}
 
-		function hookupSlider(liItem) {
-			var slider = liItem.querySelector('#islider');
-			var output = liItem.querySelector('#ival');
-			output.innerHTML = slider.value/100;
+		function hookupSlider(sliderEl, valueEl, min, max) {
+			var slider = sliderEl; //liItem.querySelector('#islider');
+			var output = valueEl; //liItem.querySelector('#ival');
+
+			function mapValue(val, min, max){
+				return Math.round((val * (max-min) + min)*100)/100;
+			}
+
+			output.innerHTML = mapValue(slider.value/100, min, max);
 			slider.oninput = function() {
-		  		output.innerHTML = this.value/100;
+		  		output.innerHTML = mapValue(slider.value/100, min, max);
 			}
 		}
 
-		hookupSlider(document.querySelector('#tagitem'));
+		hookupSlider(document.querySelector('#islider'), document.querySelector('#ival'), 0, 1);
+		hookupSlider(document.querySelector('#sslider'), document.querySelector('#sval'), -1, 1);
+
         function uploadToS3(signedUrl, file){
             console.log('S3 upload to', signedUrl);
 
@@ -89,13 +98,14 @@
 
 			if (document.querySelector('#user_meta').style.display != 'none')
 				$("#taglist li").each(function(idx, liItem){
-					var value = liItem.querySelector('#ival').innerText;
+					var ivalue = liItem.querySelector('#ival').innerText;
+					var svalue = liItem.querySelector('#sval').innerText;
 					var tag = liItem.querySelector('#tag').value;
 
 					if (tag != "" && !(tag in tags))
 					{
-						tags[tag] = value;
-						console.log('tag', tag, 'value', value);
+						tags[tag] = { 'sentiment': svalue, 'intensity': ivalue };
+						console.log('tag', tag, 'values', ivalue, svalue);
 					}
 				});
 			else {
@@ -140,7 +150,8 @@
 				if (last.querySelector('#tag').value != '')
 				{
 					var clone = last.cloneNode(true);
-					hookupSlider(clone);
+					hookupSlider(clone.querySelector('#islider'), clone.querySelector('#ival'), 0, 1);
+					hookupSlider(clone.querySelector('#sslider'), clone.querySelector('#sval'), -1, 1);
 
 					document.getElementById("taglist").appendChild(clone);
 					clone.querySelector('#tag').focus();
