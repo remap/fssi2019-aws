@@ -9,19 +9,6 @@ class ExposureInput():
     ExperienceIdKey = 'experience_id'
     ExperienceStateKey = 'state'
 
-def lambdaReply(code, message):
-    print('lambda reply {}: {}'.format(code, message))
-    return {
-        'statusCode': code,
-        'body': json.dumps(message)
-    }
-
-def malformedMessageReply():
-    return lambdaReply(420, 'Malformed message received')
-
-def processedReply():
-    return lambdaReply(200, 'Message processed')
-
 def getOccupancy(experienceId):
     # get latest occupancy for the experience
     # the occupancy is an array of visitor IDs (QR codes)

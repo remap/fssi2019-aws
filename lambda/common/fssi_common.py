@@ -1,14 +1,16 @@
 import time
 import boto3
 import copy
+import json
 from decimal import Decimal
+import sys, traceback
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
 stsConnection = boto3.client('sts')
 acctB = stsConnection.assume_role(
     RoleArn=CROSS_ACCT_ACCESS_ROLE,
-    RoleSessionName="cross_acct_lambda"
+    RoleSessionName="cross_acct_access"
 )
 
 ACCESS_KEY = acctB['Credentials']['AccessKeyId']
@@ -29,21 +31,16 @@ dynamoDbResource = boto3.resource(
     aws_session_token=SESSION_TOKEN
 )
 
-def timeseriesGetLatestForKey(tableName, keyName, keyValue):
-    response = dynamoDbClient.query(TableName=tableName,
-                         KeyConditionExpression="{} = :v_id".format(keyName),
-                         ExpressionAttributeValues={":v_id": {'S': keyValue}},
-                         Select='ALL_ATTRIBUTES',
-                         Limit=1,
-                         ScanIndexForward=False)
-    return response
+snsClient = boto3.client(
+    'sns',
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY,
+    aws_session_token=SESSION_TOKEN
+)
 
-def timeseriesAdd(tableName, records):
-    table = dynamoDbResource.Table(tableName)
-    itemDict = records
-    itemDict['timestamp'] = Decimal(time.time())
-    table.put_item(Item = itemDict)
-
+################################################################################
+# FSSI2019 RESOURCES
+################################################################################
 class FssiResources():
     class DynamoDB():
         ExperienceEmissionTs = "fssi2019-dynamodb-experience_emission_ts"
@@ -59,7 +56,68 @@ class FssiResources():
 
     class S3Bucket():
         Ingest = "fssi2019-s3-ingest"
+    class Sns():
+        DynamodbUpdates = "fssi2019-sns-dynamodb-updates"
 
+################################################################################
+# GENERAL HELPERS
+################################################################################
+def reportError():
+    type, err, tb = sys.exc_info()
+    print('caught exception:', err)
+    traceback.print_exc(file=sys.stdout)
+    return err
+
+################################################################################
+# SNS HELPERS
+################################################################################
+def getSnsTopicByName(snsTopicName):
+    topicList = snsClient.list_topics()
+    if topicList:
+        topicFound = False
+        for topicDict in topicList['Topics']:
+            arn = topicDict['TopicArn']
+            if snsTopicName in arn:
+                return arn
+    return None
+
+################################################################################
+# DYNAMODB HELPERS
+################################################################################
+def timeseriesGetLatestForKey(tableName, keyName, keyValue):
+    response = dynamoDbClient.query(TableName=tableName,
+                         KeyConditionExpression="{} = :v_id".format(keyName),
+                         ExpressionAttributeValues={":v_id": {'S': keyValue}},
+                         Select='ALL_ATTRIBUTES',
+                         Limit=1,
+                         ScanIndexForward=False)
+    return response
+
+def timeseriesAdd(tableName, records):
+    table = dynamoDbResource.Table(tableName)
+    itemDict = records
+    itemDict['timestamp'] = Decimal(time.time())
+    table.put_item(Item = itemDict)
+
+################################################################################
+# LAMBDA HELPERS
+################################################################################
+def lambdaReply(code, message):
+    print('lambda reply {}: {}'.format(code, message))
+    return {
+        'statusCode': code,
+        'body': json.dumps(message)
+    }
+
+def malformedMessageReply():
+    return lambdaReply(420, 'Malformed message received')
+
+def processedReply():
+    return lambdaReply(200, 'Message processed')
+
+################################################################################
+# VISITOR MANAGEMENT CLASSES
+################################################################################
 class KeywordState():
     def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
         if isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
