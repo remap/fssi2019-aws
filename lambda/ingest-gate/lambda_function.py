@@ -31,7 +31,7 @@ def lambda_handler(event, context):
         print('GENERATED PRESIGNED URL for ', requestFileName, presignedUrl)
 
         fileMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
-        fileMeta['meta']['originalFileName'] = fileName
+        fileMeta['meta']['originalFileName'] = requestFileName
         fileMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaFileMetaPreload)
         fileMetaTable.put_item(Item = fileMeta)
 
