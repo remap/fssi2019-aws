@@ -2,23 +2,23 @@
 
 This is a boilerplate code for media processing lambdas.
 
-Media processing lambdas used for processing media, ingested into S3 bucket. The code is set up to take S3 SNS topic notifications (or custom direct invocation data -- [see below](#direct-invoke)) as input. One may subscribe to multiple S3 SNS topics. Each media processing lambda writes processing metadata into a dedicated DynamoDB table, which must be set up with DynamoDB Stream and hooked up with `fssi2019-lambda-dynamodb-stream-listener` lambda (see [below how]()).
+Media processing lambdas used for processing media, ingested into S3 bucket. The code is set up to take S3 SNS topic notifications (or custom direct invocation data) as input. One may subscribe to multiple S3 SNS topics. Each media processing lambda writes processing metadata into a dedicated DynamoDB table, which must be set up with DynamoDB Stream and hooked up with `fssi2019-lambda-dynamodb-stream-listener` lambda (see [below how](#create-media-metadata-table)).
 
 ## AWS Resource
 
 * Name: `<pick a name from the list below>`
 
-### Trigger
+### Triggers
 
-#### Manual Media Ingest
-* SNS Topics: `fssi2019-sns-ingest-upload`
+#### User Media Ingest
+* SNS Topic: `fssi2019-sns-ingest-upload`
 * SNS ARN: `arn:aws:sns:us-west-1:756428767688:fssi2019-sns-ingest-upload`
 
-#### Other
+#### Custom Ingest
 
-If you have your own S3 bucket, you should set up an SNS topic that will receive event notifications from S3 when new object is added (see [below how](#Setup-S3-Bucket-to-Post-SNS-notifications)).
+If you have your own S3 bucket, you should set it up to pose a SNS notification which you can subscribe your lambda to (see [below how](#Setup-S3-Bucket-to-Post-SNS-notifications)).
 
-#### Direct Invoke
+#### Direct Invocation
 
 You may want to invoke lambda function directly to process already existing object. To do that, you'll need to invoke lambda like this (see the format for `myPayload` [below](#custom)):
 
@@ -31,10 +31,10 @@ lambdaClient.invoke(FunctionName='lambda-name', Payload=json.dumps(myPayload))
 ### Input Format
 
 #### S3 SNS
-The lambda expects *SNS S3 notification* dictionary placed as a string in the "Message" field of SNS notification. The format of the input can be found in the [source code](https://github.com/remap/fssi2019-aws/blob/master/lambda/lambda-proc-template/lambda_function.py#L46).
+The lambda expects *SNS S3 notification* dictionary placed as a string in the "Message" field of SNS notification. The format of the input can be found in the [source code](https://github.com/remap/fssi2019-aws/blob/master/lambda/lambda-proc-template/lambda_function.py#L54).
 
 #### Custom
-If lambda can not find SNS notifications in the event records, it will expect event with the following format:
+If lambda can not find SNS notifications in the event records, it will assume direct invocation and expect event payload with the following format:
 
 ```
 {
@@ -46,19 +46,19 @@ If lambda can not find SNS notifications in the event records, it will expect ev
 
 ## Processing
 
-Generally, one would start implementing [processNewObject](https://github.com/remap/fssi2019-aws/blob/master/lambda/lambda-proc-template/lambda_function.py#L8) function for processing new uploaded object.
-Processing results must be written into a "media metadata table" (one must ensure that the table is created, see [below how](#Create-Media-Metadata-Table)).
+To implement your lambda, add code to the [processObject](https://github.com/remap/fssi2019-aws/blob/master/lambda/lambda-proc-template/lambda_function.py#L8) function for processing S3 objects.
+Processing results must be written into a *media metadata table* (one must ensure that the table is created, see [below how](#Create-Media-Metadata-Table)).
 
 ### Media Metadata Tables
 
-Media metadata tables are DynamoDB tables that has the following keys:
+Media metadata table is a DynamoDB table that has the following keys:
 
 * `id` -- S3 object key;
 * `bucket` -- S3 bucket name;
 * `created` -- date when item was created;
 * `meta` -- service-specific metadata.
 
-[fssi_common.py]() has a helper function to quickly instantiate dictionary for a new item. One can use it as:
+`fssi_common.py` has [helper function](https://github.com/remap/fssi2019-aws/blob/master/lambda/common/fssi_common.py#L128) to quickly instantiate dictionary for a new item. One can use it as:
 
 ```
 ...
@@ -67,11 +67,11 @@ newItem['meta'] = {<processing results>}
 ...
 ```
 
-The format for the `meta` value is not enforced. At least for right now.
+The format of the `meta` is not enforced. At least for right now. But make sure to save all the information that might be helpful for retrieving media (this metadata is also ingested into ElasticSearch).
 
 #### Table Names
 
-Here is the proposed list of media metadata table names (and their Python constants from [fssi_common.py]()):
+Here is the proposed list of media metadata table names (and their Python constants from [fssi_common.py](https://github.com/remap/fssi2019-aws/blob/master/lambda/common/fssi_common.py#L66)):
 
 * User-supplied metadata (through [Ingestion Web UI](https://github.com/remap/fssi2019-aws/tree/master/s3/ingest-web)):
     * `fssi2019-dynamodb-media-user-meta`
@@ -91,7 +91,7 @@ Here is the proposed list of media metadata table names (and their Python consta
 
 ### Lambda Names
 
-Here is the proposed list of lambdas (and Python constants from [fssi_common.py]()):
+Here is the proposed list of lambdas (and Python constants from [fssi_common.py](https://github.com/remap/fssi2019-aws/blob/master/lambda/common/fssi_common.py#L80)):
 
 * File-based metata processing:
     * `fssi2019-lambda-media-file-proc`
@@ -113,7 +113,8 @@ More information [here](https://docs.aws.amazon.com/AmazonS3/latest/user-guide/e
 Two-step process:
 
 1. Update topic access policy (using Web Console).
-    -> add this dictionary into "Statement" list (replace `SNS-ARN` and `S3-ARN` with real values accordingly):
+
+    :point_right: add this dictionary into "Statement" list (replace `SNS-ARN` and `S3-ARN` with real values accordingly):
     ```
         {
             "Sid": "s3-bucket-pubblish",
@@ -131,11 +132,14 @@ Two-step process:
         }
     ```
 2. Configure S3 Bucket to post notifications to SNS topic:
-    -> go to "Properties" tab of the Bucket, enable "Event Notifications"
-    -> select "All object create events"
-    -> choose SNS topic and save
 
-Your bucket will now post notifications to the topic every time a new object is added.
+    :point_right: go to "Properties" tab of the Bucket, enable "Event Notifications"
+    
+    :point_right: select "All object create events"
+    
+    :point_right: choose SNS topic and save
+
+:blush: Your bucket will now post notifications to the topic every time a new object is added.
 
 
 ## Create Media Metadata Table
@@ -177,7 +181,7 @@ aws lambda create-event-source-mapping --profile fssi2019-xacc-resource-access \
 ```
 ## Setup Processing Lambda
 
-To start implementing processing lambda, one shall use current template code. The steps below show how to do it and hook up your processing lambda to the manual ingestion SNS topic. One shall also hook up lambda to one's own S3 buckets used for media ingestion.
+To start implementing processing lambda, one shall use current template code. The steps below show how to do it and hook up your processing lambda to the user ingestion SNS topic. One shall also hook up lambda to one's own S3 buckets used for media ingestion.
 
 * copy processing lambda template into a separate folder (set concrete folder name for `<my-proc-lambda>`):
 
