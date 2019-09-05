@@ -1,6 +1,6 @@
 import json
 import boto3
-import sys
+import sys, os
 from fssi_common import *
 import requests
 from requests_aws4auth import AWS4Auth
@@ -24,15 +24,15 @@ def processDbEvent(event, table, itemId, itemData):
 
     host = 'https://' + getEsEndpoint(esDomainName)
     awsAuth = AWS4Auth(ACCESS_KEY, SECRET_KEY, region, service, session_token=SESSION_TOKEN)
-    url = host + '/' + esIndex + '/' + esType + '/'
-    itemUrl = url + itemId
+    url = host + '/' + esIndex + '/' + esType
+    itemUrl = os.path.join(url, itemId)
     if event == 'REMOVE':
         print('delete from index: {}'.format(itemId))
         r = requests.delete(itemUrl, auth = awsAuth)
     else:
         document = itemData
         print('insert document into ES index {}'.format(document))
-        print('insert URL {}'.format(url))
+        print('insert URL {}'.format(itemUrl))
         r =requests.put(itemUrl, auth = awsAuth, json = document, headers = headers)
 
     if r.status_code != 200:
