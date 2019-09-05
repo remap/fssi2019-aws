@@ -13,7 +13,7 @@ def lambda_handler(event, context):
             sourceArn = record['eventSourceARN']
             tableName = sourceArn.split('/')[1]
             itemData = None
-            if eventName == 'INSERT':
+            if eventName == 'INSERT' or eventName == 'MODIFY':
                 itemData = record['dynamodb']['NewImage']
             if eventName == 'REMOVE':
                 itemData = record['dynamodb']['OldImage']
