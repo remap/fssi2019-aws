@@ -5,7 +5,7 @@ from fssi_common import *
 
 ################################################################################
 ## S3 Object Processing Here
-def processNewObject(objectKey, s3BucketName, s3BucketArn):
+def processObject(objectKey, s3BucketName, s3BucketArn):
     tmpFile = '/tmp/s3file'
     s3Client.download_file(s3BucketName, objectKey, tmpFile)
     ## ... process file
@@ -17,23 +17,31 @@ def processNewObject(objectKey, s3BucketName, s3BucketArn):
 ## Lambda Handler
 def lambda_handler(event, context):
     try:
-        for record in event['Records']:
-            if record['EventSource'] != 'aws:sns':
-                return lambdaReply(420, 'received non-SNS event record: {}'.format(record))
+        if not 'Records' in event:
+            # assume direct invocation
+            objectKey = event['objectKey']
+            bucket = event['bucket']
+            bucketArn = event['bucketArn'] if 'bucketArn' in event else None
 
-            snsRecord = record['Sns']
-            messageDict = json.loads(snsRecord['Message'])
-            for snsRecord in messageDict['Records']:
-                if snsRecord['eventName'] == 'ObjectCreated:Put':
-                    s3BucketName = snsRecord['s3']['bucket']['name']
-                    s3BucketArn =  snsRecord['s3']['bucket']['arn']
-                    objectKey = snsRecord['s3']['object']['key']
+            print('direct invocation for object {} from bucket {}'.format(objectKey, bucket))
+            processObject(objectKey, bucket, bucketArn)
+        else:
+            for record in event['Records']:
+                if record['EventSource'] != 'aws:sns':
+                    return lambdaReply(420, 'received non-SNS event record: {}'.format(record))
 
-                    print('new item {} added to bucket {} ({})'.format(objectKey, s3BucketName, s3BucketArn))
-                    processNewObject(objectKey, s3BucketName, s3BucketArn)
-                else:
-                    lambdaReply(420, 'SNS event type not supported: {}'.format(snsRecord['eventName']))
+                snsRecord = record['Sns']
+                messageDict = json.loads(snsRecord['Message'])
+                for snsRecord in messageDict['Records']:
+                    if snsRecord['eventName'] == 'ObjectCreated:Put':
+                        s3BucketName = snsRecord['s3']['bucket']['name']
+                        s3BucketArn =  snsRecord['s3']['bucket']['arn']
+                        objectKey = snsRecord['s3']['object']['key']
 
+                        print('new item {} added to bucket {} ({})'.format(objectKey, s3BucketName, s3BucketArn))
+                        processObject(objectKey, s3BucketName, s3BucketArn)
+                    else:
+                        lambdaReply(420, 'SNS event type not supported: {}'.format(snsRecord['eventName']))
     except:
         err = reportError()
         print('caught exception:', sys.exc_info()[0])
