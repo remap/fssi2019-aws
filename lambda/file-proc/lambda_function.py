@@ -33,6 +33,16 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
 
         mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
         mediaMetadata['meta'] = {'exifTags': exifTags}
+
+    # copy data from preload table, if exists
+    preloadMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaFileMetaPreload)
+    res = preloadMetaTable.get_item(Key={'id' : objectKey})
+    if 'Item' in res:
+        if not mediaMetadata:
+            mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
+        mediaMetadata['meta'].update(res['Item']['meta'])
+
+    if mediaMetadata:
         fileMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaFileMeta)
         fileMetaTable.put_item(Item = mediaMetadata)
         return
