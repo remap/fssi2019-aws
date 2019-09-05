@@ -4,11 +4,11 @@ import sys, os
 from fssi_common import *
 import requests
 from requests_aws4auth import AWS4Auth
+import hashlib
 
 region = 'us-west-1'
 service = 'es'
 esIndex = 'media-index'
-esType = ''
 headers = { "Content-Type": "application/json" }
 
 esDomainName = FssiResources.ElasticSearch.StageDomain
@@ -22,10 +22,21 @@ def getEsEndpoint(esDomainName):
 def processDbEvent(event, table, itemId, itemData):
     global esDomainName, region, services, esIndex, esType
 
+    mimeType = guessMimeTypeFromExt(itemId)
+    if not mimeType:
+        mimeType = 'general'
+    else:
+        mimeType = mimeType.split('/')[0]
+
     host = 'https://' + getEsEndpoint(esDomainName)
     awsAuth = AWS4Auth(ACCESS_KEY, SECRET_KEY, region, service, session_token=SESSION_TOKEN)
+
+    esIndex = mimeType
+    esType = 'media'
     url = host + '/' + esIndex + '/' + esType
-    itemUrl = os.path.join(url, itemId)
+    itemHash = hashlib.sha1((table + itemId).encode('utf-8')).hexdigest()
+    itemUrl = os.path.join(url, itemHash)
+
     if event == 'REMOVE':
         print('delete from index: {}'.format(itemId))
         r = requests.delete(itemUrl, auth = awsAuth)
@@ -35,7 +46,7 @@ def processDbEvent(event, table, itemId, itemData):
         print('insert URL {}'.format(itemUrl))
         r =requests.put(itemUrl, auth = awsAuth, json = document, headers = headers)
 
-    if r.status_code != 200:
+    if not r.ok:
         raise ValueError('error {} while executing request {}: {}'.format(r.status_code, itemUrl, r.content))
 
 def lambda_handler(event, context):
