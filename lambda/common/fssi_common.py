@@ -3,9 +3,10 @@ import boto3
 import copy
 import json
 from decimal import Decimal
-import sys, traceback
+import sys, traceback, os
 import uuid
 from datetime import datetime
+import urllib.request, mimetypes
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
@@ -90,6 +91,25 @@ def reportError():
     print('caught exception:', err)
     traceback.print_exc(file=sys.stdout)
     return err
+
+def downloadFile(objectKey, s3BucketName):
+    fName = os.path.join('/tmp',objectKey.replace('/', '-'))
+    s3Client.download_file(s3BucketName, objectKey, fName)
+    return fName
+
+def guessMimeTypeFromExt(fileName):
+    # try to guwss from file extension first
+    type, _ = mimetypes.guess_type(urllib.request.pathname2url(fileName))
+    if type:
+        return type
+    return None
+
+def guessMimeTypeFromFile(fileName):
+    ## try reading the header
+    res = os.popen('file --mime-type '+fileName).read()
+    type = res.split(':')[-1].strip()
+    return type
+
 
 ################################################################################
 # SNS HELPERS
