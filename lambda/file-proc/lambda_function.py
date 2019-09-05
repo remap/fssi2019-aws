@@ -41,6 +41,7 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
         if not mediaMetadata:
             mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
         mediaMetadata['meta'].update(res['Item']['meta'])
+        preloadMetaTable.delete_item(Key={'id': objectKey})
 
     if mediaMetadata:
         fileMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaFileMeta)
