@@ -111,6 +111,7 @@
 			else {
 				try {
 					tags = JSON.parse(document.querySelector('#custom_json textarea').value);
+					tags['customJson'] = 'true';
 				}
 				catch(err)
 				{

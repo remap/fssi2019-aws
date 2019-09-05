@@ -32,8 +32,13 @@ def lambda_handler(event, context):
 
         # upload tags into user meta table
         if len(tags):
+            if not 'customJson' in tags:
+                # process tags so they are ElasticSearchable
+                userTags = {'userTags' : [{'keyword':k, 'intensity':v['intensity'], 'sentiment':v['sentiment']} for k,v in tags.items()]}
+            else:
+                userTags = tags
             userMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
-            userMeta['meta'] = tags
+            userMeta['meta'] = userTags
             userMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaUserMetaPreload)
             userMetaTable.put_item(Item = userMeta)
 
