@@ -191,7 +191,7 @@ rsync -av lambda-proc-template/ $myProcLambda/ --exclude README.md
 
 ```
 export lambdaName=<my-proc-lambda-name>
-zip -X -r -j index.zip $myProcLambda/*
+zip -X -r -j index.zip $myProcLambda/* -x "*.pyc"
 aws lambda create-function --profile fssi2019-xacc-resource-access \
     --region us-west-1 \
     --function-name $lambdaName \

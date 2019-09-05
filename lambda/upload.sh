@@ -9,7 +9,7 @@ if [ $# -ne 2 ]
 fi
 
 cd $LAMBDA_FOLDER
-zip -X -r $DIR/index.zip *
+zip -X -r $DIR/index.zip * -x "*.pyc"
 cd $DIR
 echo "Uploading code from ${LAMBDA_FOLDER} to lambda named ${LAMBDA_NAME}..."
 aws lambda update-function-code --profile fssi2019-xacc-resource-access --function-name $LAMBDA_NAME --zip-file fileb://index.zip
