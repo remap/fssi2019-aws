@@ -48,6 +48,12 @@ s3Client = boto3.client(
     aws_session_token=SESSION_TOKEN
 )
 
+esClient = boto3.client('es',
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY,
+    aws_session_token=SESSION_TOKEN
+)
+
 ################################################################################
 # FSSI2019 RESOURCES
 ################################################################################
@@ -82,6 +88,11 @@ class FssiResources():
         TranscribeProc = "fssi2019-lambda-media-transcribe-proc"
         ComprehendProc = "fssi2019-lambda-media-comprehend-proc"
         RekognitionProc = "fssi2019-lambda-media-rekognition-proc"
+
+    class ElasticSearch():
+        ProductionDomain = "fssi2019-elasticsearch-production"
+        StageDomain = "fssi2019-elasticsearch-stage"
+        DevDomain = "fssi2019-elasticsearch-dev"
 
 ################################################################################
 # GENERAL HELPERS
