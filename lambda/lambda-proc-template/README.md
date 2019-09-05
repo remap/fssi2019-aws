@@ -159,8 +159,8 @@ aws dynamodb create-table --profile fssi2019-xacc-resource-access \
 
 ```
 aws dynamodb update-table --profile fssi2019-xacc-resource-access \
-	--table-name $tableName
-	--stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
+    --table-name $tableName \
+    --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
 ```
 
 3. Get table stream ARN:
