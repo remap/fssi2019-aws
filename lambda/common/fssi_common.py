@@ -72,6 +72,7 @@ class FssiResources():
 
         MediaUserMetaPreload = "fssi2019-dynamodb-media-user-meta-preload"
         MediaUserMeta = "fssi2019-dynamodb-media-user-meta"
+        MediaFileMetaPreload = "fssi2019-dynamodb-media-file-meta-preload"
         MediaFileMeta = "fssi2019-dynamodb-media-file-meta"
         MediaTranscribeMeta = "fssi2019-dynamodb-media-transcribe-meta"
         MediaComprehendMeta = "fssi2019-dynamodb-media-comprehend-meta"

@@ -30,6 +30,11 @@ def lambda_handler(event, context):
 
         print('GENERATED PRESIGNED URL for ', requestFileName, presignedUrl)
 
+        fileMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
+        fileMeta['meta']['originalFileName'] = fileName
+        fileMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaFileMetaPreload)
+        fileMetaTable.put_item(Item = fileMeta)
+
         # upload tags into user meta table
         if len(tags):
             if not 'customJson' in tags:
