@@ -65,11 +65,22 @@ class FssiResources():
 
         MediaUserMetaPreload = "fssi2019-dynamodb-media-user-meta-preload"
         MediaUserMeta = "fssi2019-dynamodb-media-user-meta"
+        MediaFileMeta = "fssi2019-dynamodb-media-file-meta"
+        MediaTranscribeMeta = "fssi2019-dynamodb-media-transcribe-meta"
+        MediaComprehendMeta = "fssi2019-dynamodb-media-comprehend-meta"
+        MediaRekognitionMeta = "fssi2019-dynamodb-media-rekognition-meta"
 
     class S3Bucket():
         Ingest = "fssi2019-s3-ingest"
+
     class Sns():
         DynamodbUpdates = "fssi2019-sns-dynamodb-updates"
+
+    class Lambda():
+        FileProc = "fssi2019-lambda-media-file-proc"
+        TranscribeProc = "fssi2019-lambda-media-transcribe-proc"
+        ComprehendProc = "fssi2019-lambda-media-comprehend-proc"
+        RekognitionProc = "fssi2019-lambda-media-rekognition-proc"
 
 ################################################################################
 # GENERAL HELPERS
@@ -119,7 +130,7 @@ def makeMediaMetaItem(itemId, s3BucketName):
         'id' : itemId,
         'bucket': s3BucketName,
         'created': str(datetime.now()),
-        'userMeta': {}
+        'meta': {}
     }
 
 
