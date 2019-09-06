@@ -15,7 +15,7 @@ def lambda_handler(event, context):
         if 'user_meta' in event["queryStringParameters"]:
             try:
                 userMeta = event["queryStringParameters"]['user_meta']
-                tags = json.loads(base64.b64decode(urllib.parse.unquote(userMeta)), parse_float=Decimal)
+                tags = json.loads(base64.b64decode(urllib.parse.unquote(userMeta)), parse_float=Decimal, parse_int=Decimal)
             except:
                 type, err, tb = sys.exc_info()
                 print('caught exception:', err)
