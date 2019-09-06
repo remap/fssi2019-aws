@@ -37,12 +37,19 @@ def lambda_handler(event, context):
     try:
         if not 'Records' in event:
             # assume direct invocation
-            objectKey = event['objectKey']
-            bucket = event['bucket']
-            bucketArn = event['bucketArn'] if 'bucketArn' in event else None
-
-            print('direct invocation for object {} from bucket {}'.format(objectKey, bucket))
-            processObject(objectKey, bucket, bucketArn)
+            if 'items' in event:
+                print('batch processing for {} items'.format(len(event['items'])))
+                # batch processing
+                for item in event['items']:
+                    bucketArn = item['bucketArn'] if 'bucketArn' in item else None
+                    processObject(item['objectKey'], item['bucket'], bucketArn)
+            else:
+                # one record invocation
+                objectKey = event['objectKey']
+                bucket = event['bucket']
+                bucketArn = event['bucketArn'] if 'bucketArn' in event else None
+                print('direct invocation for object {} from bucket {}'.format(objectKey, bucket))
+                processObject(objectKey, bucket, bucketArn)
         else:
             for record in event['Records']:
                 if record['EventSource'] != 'aws:sns':
