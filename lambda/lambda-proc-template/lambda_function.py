@@ -19,6 +19,13 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
     #   if not fName:
     #       fName = downloadFile(objectKey, s3BucketName)
     #    # do stuff
+
+    ## save results into metadata table
+    # mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
+    # mediaMetadata['meta'] = { <processing results>}
+    # metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.Media...)
+    # metadataTable.put_item(Item = mediaMetadata)
+
     raise ValueError('object processing is not implemented')
 
 ################################################################################
