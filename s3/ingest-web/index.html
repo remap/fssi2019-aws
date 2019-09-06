@@ -104,7 +104,7 @@
 
 					if (tag != "" && !(tag in tags))
 					{
-						tags[tag] = { 'sentiment': svalue, 'intensity': ivalue };
+						tags[tag] = { 'sentiment': parseFloat(svalue), 'intensity': parseFloat(ivalue) };
 						console.log('tag', tag, 'values', ivalue, svalue);
 					}
 				});
