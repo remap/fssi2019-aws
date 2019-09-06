@@ -1,6 +1,7 @@
 import json
 import boto3
 import sys, os
+from decimal import Decimal
 from fssi_common import *
 
 ################################################################################
@@ -24,7 +25,8 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
     # mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
     # mediaMetadata['meta'] = { <processing results>}
     # metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.Media...)
-    # metadataTable.put_item(Item = mediaMetadata)
+    # ddbData = json.loads(json.dumps(data), parse_float=Decimal)
+    # metadataTable.put_item(Item = ddbData)
 
     raise ValueError('object processing is not implemented')
 
