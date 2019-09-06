@@ -6,11 +6,19 @@ from fssi_common import *
 ################################################################################
 ## S3 Object Processing Here
 def processObject(objectKey, s3BucketName, s3BucketArn):
-    tmpFile = '/tmp/s3file'
-    s3Client.download_file(s3BucketName, objectKey, tmpFile)
-    ## ... process file
-    ## or just get object from s3:
-    # uploadedObject = s3Client.get_object(Bucket=s3BucketName, Key=objectKey)
+    mimeType = guessMimeTypeFromExt(objectKey)
+
+    if not mimeType:
+        print('couldn\'t derive MIME type from extension')
+        fName = downloadFile(objectKey, s3BucketName)
+        mimeType = guessMimeTypeFromFile(fName)
+
+    ## do processing based on derived file MIME type
+    ## for example:
+    #if 'image' in mimeType:
+    #   if not fName:
+    #       fName = downloadFile(objectKey, s3BucketName)
+    #    # do stuff
     raise ValueError('object processing is not implemented')
 
 ################################################################################
