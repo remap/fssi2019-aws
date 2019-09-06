@@ -38,8 +38,9 @@ def lambda_handler(event, context):
         # upload tags into user meta table
         if len(tags):
             if not 'customJson' in tags:
-                # process tags so they are ElasticSearchable
+                # process tags so that they are ElasticSearchable
                 userTags = {'userTags' : [{'keyword':k, 'intensity':v['intensity'], 'sentiment':v['sentiment']} for k,v in tags.items()]}
+                # userTags = { '_'+str(idx): {'keyword':k, 'intensity':v['intensity'], 'sentiment':v['sentiment']} for idx, (k,v) in enumerate(tags.items())}
             else:
                 userTags = tags
             userMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
