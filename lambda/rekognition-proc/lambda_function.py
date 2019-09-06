@@ -14,20 +14,20 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
         fName = downloadFile(objectKey, s3BucketName)
         mimeType = guessMimeTypeFromFile(fName)
 
-    ## do processing based on derived file MIME type
-    ## for example:
-    #if 'image' in mimeType:
-    #   if not fName:
-    #       fName = downloadFile(objectKey, s3BucketName)
-    #    # do stuff
 
-    ## save results into metadata table
-    # mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
-    # procServiceName = <name of the processing service, i.e. rekognition>
-    # mediaMetadata['meta'] = { procServiceName: <processing results>}
-    # metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.Media...)
-    # ddbData = json.loads(json.dumps(mediaMetadata), parse_float=Decimal)
-    # metadataTable.put_item(Item = ddbData)
+    if 'image' in mimeType:
+       # do stuff
+       client = boto3.client('rekognition')
+       labels = client.detect_labels(Image={'S3Object' : {'Bucket': s3BucketName, 'Name':objectKey}})
+       print(json.dumps(labels))
+
+       mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
+       mediaMetadata['meta'] = { 'rekognition': labels }
+       metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaRekognitionMeta)
+       ddbData = json.loads(json.dumps(mediaMetadata), parse_float=Decimal)
+       metadataTable.put_item(Item = ddbData)
+
+       return
 
     raise ValueError('object processing is not implemented')
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
                                 'MessageId':'105a42d1-a4a5-5adf-a620-173bb838d5a7',
                                 'TopicArn':'arn:aws:sns:us-west-1:756428767688:fssi2019-sns-ingest-upload',
                                 'Subject':'Amazon S3 Notification',
-                                'Message':'{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-west-1","eventTime":"2019-09-04T20:11:09.660Z","eventName":"ObjectCreated:Put","userIdentity":{"principalId":"AWS:AROA3AHVLAHEOUASVZXIH:fssi2019-lambda-ingest-gate"},"requestParameters":{"sourceIPAddress":"131.179.142.121"},"responseElements":{"x-amz-request-id":"497AD45555DD0057","x-amz-id-2":"eyiMv7GzyjS7azmBORnShRuyUIxUVBLzQitguWVagDn8obtQqgtJ1PsMPxlCYvU2MmiXPYccxcE="},"s3":{"s3SchemaVersion":"1.0","configurationId":"Ingest Upload","bucket":{"name":"fssi2019-s3-ingest","ownerIdentity":{"principalId":"A2IYG3741R477C"},"arn":"arn:aws:s3:::fssi2019-s3-ingest"},"object":{"key":"upload/28d61694-0348-4c6f-83a2-89a9d781d942.md","size":466,"eTag":"bdf430c4b4bbdd37886b0de2a4b87107","sequencer":"005D701A5D9658C51B"}}}]}',
+                                'Message':'{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-west-1","eventTime":"2019-09-04T20:11:09.660Z","eventName":"ObjectCreated:Put","userIdentity":{"principalId":"AWS:AROA3AHVLAHEOUASVZXIH:fssi2019-lambda-ingest-gate"},"requestParameters":{"sourceIPAddress":"131.179.142.121"},"responseElements":{"x-amz-request-id":"497AD45555DD0057","x-amz-id-2":"eyiMv7GzyjS7azmBORnShRuyUIxUVBLzQitguWVagDn8obtQqgtJ1PsMPxlCYvU2MmiXPYccxcE="},"s3":{"s3SchemaVersion":"1.0","configurationId":"Ingest Upload","bucket":{"name":"fssi2019-s3-ingest","ownerIdentity":{"principalId":"A2IYG3741R477C"},"arn":"arn:aws:s3:::fssi2019-s3-ingest"},"object":{"key":"upload/bfe82b36-f70d-4702-bc0f-65c8079d389a.jpg","size":466,"eTag":"bdf430c4b4bbdd37886b0de2a4b87107","sequencer":"005D701A5D9658C51B"}}}]}',
                                 'Timestamp':'2019-09-04T20:11:09.920Z',
                                 'SignatureVersion':'1',
                                 'Signature':'evgodY/lwnQ7Luw4XrUWdBsOim6Ufe6DAIAN7fdwOU5Ao8BT8XQ2D4y+6Kq9Ja1GQTJnZE1vwlw1MLqCLXFDzWnbJvko98rZBdgzrm+N8MW/Jp+0gQfjZOWnMvHu98sJyZPGuz7foE3hFT3FCUlsieVbRSK6PD9MMqya5PGYnjXUfQKb80TnBu/58hRmY0R+aVbskqraPdnIB0Z9ZcCm1neRkJ1u/CcDY6w1ENxWZokh8/jt3b9dJ9UjP92U/tlmrAV4nlw+h9GbXpfTS+k7aa+pZoQ1NFgcJ3ETkBpEMY5Vsc4DFaHFuJGhFvsjfSUHmMHUgroEC5d8z8yV/2wbNg==',
