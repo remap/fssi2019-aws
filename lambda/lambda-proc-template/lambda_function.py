@@ -25,7 +25,7 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
     # mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
     # mediaMetadata['meta'] = { <processing results>}
     # metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.Media...)
-    # ddbData = json.loads(json.dumps(data), parse_float=Decimal)
+    # ddbData = json.loads(json.dumps(mediaMetadata), parse_float=Decimal)
     # metadataTable.put_item(Item = ddbData)
 
     raise ValueError('object processing is not implemented')
