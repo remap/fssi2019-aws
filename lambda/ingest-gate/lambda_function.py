@@ -4,6 +4,7 @@ import boto3
 import sys, traceback
 import uuid
 import os
+from decimal import *
 from fssi_common import *
 
 def lambda_handler(event, context):
@@ -14,7 +15,7 @@ def lambda_handler(event, context):
         if 'user_meta' in event["queryStringParameters"]:
             try:
                 userMeta = event["queryStringParameters"]['user_meta']
-                tags = json.loads(base64.b64decode(urllib.parse.unquote(userMeta)))
+                tags = json.loads(base64.b64decode(urllib.parse.unquote(userMeta)), parse_float=Decimal)
             except:
                 type, err, tb = sys.exc_info()
                 print('caught exception:', err)

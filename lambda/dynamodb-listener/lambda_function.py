@@ -1,8 +1,9 @@
-import json
 import boto3
 import sys, traceback
 import uuid
 import os
+import simplejson
+from decimal import *
 from fssi_common import *
 
 ## more info -- https://stackoverflow.com/a/46738251/846340
@@ -33,11 +34,11 @@ def lambda_handler(event, context):
                         'table must provide "id" for items'.format(tableName))
 
             snsMessageBody = { 'table': tableName, 'event':eventName, 'itemId': itemData['id'], 'itemData': itemData }
-            print('will publish SNS message {}'.format(json.dumps(snsMessageBody)))
+            print('will publish SNS message {}'.format(simplejson.dumps(snsMessageBody)))
 
             mySnsClient = boto3.client('sns')
             response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.DynamodbUpdates),
-                Message=json.dumps(snsMessageBody))
+                Message=simplejson.dumps(snsMessageBody))
             if response and type(response) == dict and 'MessageId' in response:
                 return processedReply()
             else:
