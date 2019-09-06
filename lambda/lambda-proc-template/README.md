@@ -48,11 +48,11 @@ Or batch processing format:
 
 ```
 {
-    "items": {
+    "items": [{
         "bucket": <bucket-name>,
         "bucketArn": <bucket-arn>, // optional
         "objectKey": <object-key>
-    }
+    }, ...]
 }
 ```
 
