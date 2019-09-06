@@ -13,6 +13,13 @@ headers = { "Content-Type": "application/json" }
 
 esDomainName = FssiResources.ElasticSearch.StageDomain
 
+## more info -- https://stackoverflow.com/a/46738251/846340
+def unmarshallAwsDataItem(awsDict):
+    boto3.resource('dynamodb')
+    deserializer = boto3.dynamodb.types.TypeDeserializer()
+    pyDict = {k: deserializer.deserialize(v) for k,v in awsDict.items()}
+    return pyDict
+
 def getEsEndpoint(esDomainName):
     res = esClient.describe_elasticsearch_domain(DomainName=esDomainName)
     if res and 'DomainStatus' in res:
@@ -42,6 +49,8 @@ def processDbEvent(event, table, itemId, itemData):
         r = requests.delete(itemUrl, auth = awsAuth)
     else:
         document = itemData
+        document['table'] = table
+        document['itemId'] = itemId
         print('insert document into ES index {}'.format(document))
         print('insert URL {}'.format(itemUrl))
         r =requests.put(itemUrl, auth = awsAuth, json = document, headers = headers)
@@ -60,7 +69,7 @@ def lambda_handler(event, context):
             table = messageDict['table']
             event = messageDict['event']
             itemId = messageDict['itemId']
-            itemData = messageDict['itemData']
+            itemData = unmarshallAwsDataItem(messageDict['itemData'])
 
             print('DynamoDB event {} for table {}, item {}: {}'.format(event, table, itemId, itemData))
             processDbEvent(event, table, itemId, itemData)
