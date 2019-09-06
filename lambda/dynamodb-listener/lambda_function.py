@@ -33,7 +33,9 @@ def lambda_handler(event, context):
                 raise ValueError('couldn\'t find "id" field in table {}: '
                         'table must provide "id" for items'.format(tableName))
 
-            snsMessageBody = { 'table': tableName, 'event':eventName, 'itemId': itemData['id'], 'itemData': itemData }
+            objectUrl = itemData['bucket']+'.s3.amazonaws.com/'+itemData['id']
+            snsMessageBody = { 'table': tableName, 'event':eventName,
+                'itemId': itemData['id'], 'objectUrl': objectUrl, 'itemData': itemData }
             print('will publish SNS message {}'.format(simplejson.dumps(snsMessageBody)))
 
             mySnsClient = boto3.client('sns')

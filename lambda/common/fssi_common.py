@@ -83,6 +83,7 @@ class FssiResources():
 
     class Sns():
         DynamodbUpdates = "fssi2019-sns-dynamodb-updates"
+        ElasticSearchUpdates = "fssi2019-sns-elasticsearch-updates"
 
     class Lambda():
         FileProc = "fssi2019-lambda-media-file-proc"
