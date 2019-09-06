@@ -5,6 +5,13 @@ import uuid
 import os
 from fssi_common import *
 
+## more info -- https://stackoverflow.com/a/46738251/846340
+def unmarshallAwsDataItem(awsDict):
+    boto3.resource('dynamodb')
+    deserializer = boto3.dynamodb.types.TypeDeserializer()
+    pyDict = {k: deserializer.deserialize(v) for k,v in awsDict.items()}
+    return pyDict
+
 def lambda_handler(event, context):
     print('EVENT', event)
     try:
@@ -14,9 +21,9 @@ def lambda_handler(event, context):
             tableName = sourceArn.split('/')[1]
             itemData = None
             if eventName == 'INSERT' or eventName == 'MODIFY':
-                itemData = record['dynamodb']['NewImage']
+                itemData = unmarshallAwsDataItem(record['dynamodb']['NewImage'])
             if eventName == 'REMOVE':
-                itemData = record['dynamodb']['OldImage']
+                itemData = unmarshallAwsDataItem(record['dynamodb']['OldImage'])
 
             # sanity checks
             if not itemData:
@@ -25,7 +32,7 @@ def lambda_handler(event, context):
                 raise ValueError('couldn\'t find "id" field in table {}: '
                         'table must provide "id" for items'.format(tableName))
 
-            snsMessageBody = { 'table': tableName, 'event':eventName, 'itemId': itemData['id']['S'], 'itemData': itemData }
+            snsMessageBody = { 'table': tableName, 'event':eventName, 'itemId': itemData['id'], 'itemData': itemData }
             print('will publish SNS message {}'.format(json.dumps(snsMessageBody)))
 
             mySnsClient = boto3.client('sns')
