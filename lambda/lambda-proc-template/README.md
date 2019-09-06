@@ -34,13 +34,25 @@ lambdaClient.invoke(FunctionName='lambda-name', Payload=json.dumps(myPayload))
 The lambda expects *SNS S3 notification* dictionary placed as a string in the "Message" field of SNS notification. The format of the input can be found in the [source code](https://github.com/remap/fssi2019-aws/blob/master/lambda/lambda-proc-template/lambda_function.py#L54).
 
 #### Custom
-If lambda can not find SNS notifications in the event records, it will assume direct invocation and expect event payload with the following format:
+If lambda can not find SNS notifications in the event records, it will assume direct invocation and expect event payload with the following format (for one record):
 
 ```
 {
   "bucket": <bucket-name>,
   "bucketArn": <bucket-arn>, // optional
   "objectKey": <object-key>
+}
+```
+
+Or batch processing format:
+
+```
+{
+    "items": {
+        "bucket": <bucket-name>,
+        "bucketArn": <bucket-arn>, // optional
+        "objectKey": <object-key>
+    }
 }
 ```
 
@@ -134,9 +146,9 @@ Two-step process:
 2. Configure S3 Bucket to post notifications to SNS topic:
 
     :point_right: go to "Properties" tab of the Bucket, enable "Event Notifications"
-    
+
     :point_right: select "All object create events"
-    
+
     :point_right: choose SNS topic and save
 
 :blush: Your bucket will now post notifications to the topic every time a new object is added.
