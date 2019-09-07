@@ -66,7 +66,8 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
             TranscriptionJobName=job_name,
             Media={'MediaFileUri': job_uri},
             LanguageCode='en-US',
-            MediaFormat=audio_format
+            MediaFormat=audio_format,
+            OutputBucketName="fssi2019-s3-transcription-out"
         )
 
     # raise ValueError('object processing is not implemented')
