@@ -1,16 +1,22 @@
 import json
 import boto3
 import sys, os
-from os import path, environ
 from fssi_common import *
-from pydub import AudioSegment
-from shutil import copy2
 
-
-custom_deps_bin_path = '/tmp/'
-environ['PATH'] += ":" + custom_deps_bin_path
-environ['PATH'] += ":/var/task/"
+FFMPEG_STATIC = "/var/task/ffmpeg"
+import subprocess
 ################################################################################
+def get_duration(file):
+    """Get the duration of a video using ffprobe."""
+    cmd = 'ffprobe -i {} -show_entries format=duration -v quiet -of csv="p=0"'.format(file)
+    output = subprocess.check_output(
+        cmd,
+        shell=True, # Let this run in the shell
+        stderr=subprocess.STDOUT
+    )
+    # return round(float(output))  # ugly, but rounds your seconds up or down
+    return float(output)
+
 ## S3 Object Processing Here
 def processObject(objectKey, s3BucketName, s3BucketArn):
     fName = None
@@ -27,22 +33,23 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
         ## need audio type to clip file. transcribe supports mp3, wav
         audio = ""
         audio_format = ""
+        fOutName = fName[:-4] + "_trim" + fName[-4:]
+
+        duration = get_duration(fName)
+        print("DURATION")
+        print(duration)
+        if duration > 10:
+            subprocess.call([FFMPEG_STATIC, '-ss', '10', '-t', '6', '-i', fName, fOutName])
         if 'mpeg' in mimeType:
-            audio = AudioSegment.from_mp3(fName)
+            # audio = AudioSegment.from_mp3(fName)
             audio_format = 'mp3'
         elif 'x-wav' in mimeType:
             audio = AudioSegment.from_wav(fName)
             audio_format = 'wav'
 
-        ##if length > 10 seconds, clip to 10 centered around middle of audio file, and re-upload to bucket for transcription
-        if audio.__len__() > 10* 1000: #convert from millis
-            five_seconds = 5*1000  # convert from milliseconds
-            halfway = len(audio)/2
-            audio = audio[halfway - five_seconds:halfway + five_seconds]
-            audio.export(fName)
-            with open(fName, 'rb') as data:
-                s3Client.put_object(Bucket=s3BucketName, Body=data, Key=objectKey)
-
+        with open(fOutName, 'rb') as data:
+                s3Client.put_object(Bucket="fssi2019-s3-code-support", Body=data, Key=objectKey)
+        print("uploaded")
 
         transcribe = boto3.client(
             'transcribe',
@@ -51,7 +58,7 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
             aws_session_token=SESSION_TOKEN
         )
         job_name = "transcribe_"+str(hash(objectKey))
-        job_uri = "s3://"+s3BucketName+'/'+objectKey
+        job_uri = "s3://fssi2019-s3-code-support"+'/'+objectKey
         transcribe.start_transcription_job(
             TranscriptionJobName=job_name,
             Media={'MediaFileUri': job_uri},
