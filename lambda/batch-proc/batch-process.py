@@ -70,7 +70,11 @@ def iterateBucket(bucketName, lambdaName, prefixFilter, batchSize, noPause):
                 print('gathered {} items. will invoke lambda now'.format(len(batch)))
                 # print(batch)
                 start = time.time()
-                res = lambdaClient.invoke(FunctionName=lambdaName, Payload=json.dumps({'items': batch}))
+                # res = {'ResponseMetadata' : {'HTTPStatusCode': 200}}
+                # print('invoke lambda')
+                payload = json.dumps({'items': batch})
+                print('payload size', len(payload))
+                res = lambdaClient.invoke(FunctionName=lambdaName, Payload=payload)
                 runTime.append(time.time() - start)
                 statusCode = res['ResponseMetadata']['HTTPStatusCode']
                 print('lambda returned code {}'.format(statusCode))

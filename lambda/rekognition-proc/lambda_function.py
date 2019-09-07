@@ -1,11 +1,18 @@
 import json
-import boto3
+import boto3, botocore
 import sys, os
 from decimal import Decimal
 from fssi_common import *
 
+metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaRekognitionMeta)
+rekognitionClient = boto3.client('rekognition')
+
 ################################################################################
 ## S3 Object Processing Here
+def wasItemProcessed(objectKey):
+    response = metadataTable.get_item(Key = {'id' : objectKey})
+    return 'Item' in response
+
 def processObject(objectKey, s3BucketName, s3BucketArn):
     mimeType = guessMimeTypeFromExt(objectKey)
 
@@ -14,22 +21,20 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
         fName = downloadFile(objectKey, s3BucketName)
         mimeType = guessMimeTypeFromFile(fName)
 
-
     if 'image' in mimeType:
        # do stuff
-       client = boto3.client('rekognition')
-       labels = client.detect_labels(Image={'S3Object' : {'Bucket': s3BucketName, 'Name':objectKey}})
-       print(json.dumps(labels))
-
-       mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
-       mediaMetadata['meta'] = { 'rekognition': labels }
-       metadataTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaRekognitionMeta)
-       ddbData = json.loads(json.dumps(mediaMetadata), parse_float=Decimal)
-       metadataTable.put_item(Item = ddbData)
-
+       if not wasItemProcessed(objectKey):
+           labels = rekognitionClient.detect_labels(Image={'S3Object' : {'Bucket': s3BucketName, 'Name':objectKey}})
+           mediaMetadata = makeMediaMetaItem(objectKey, s3BucketName)
+           mediaMetadata['meta'] = { 'rekognition': labels }
+           ddbData = json.loads(json.dumps(mediaMetadata), parse_float=Decimal)
+           metadataTable.put_item(Item = ddbData, ConditionExpression='attribute_not_exists(id)')
+       else:
+           print('item {} was already processed'.format(objectKey))
        return
 
-    raise ValueError('object processing is not implemented')
+    print('no processing for item {}'.format(objectKey))
+    return
 
 ################################################################################
 ## Lambda Handler
