@@ -2,13 +2,14 @@ import json
 import boto3
 import sys, os
 from fssi_common import *
+import subprocess
 
 FFMPEG_STATIC = "/var/task/ffmpeg"
-import subprocess
+
 ################################################################################
 def get_duration(file):
     """Get the duration of a video using ffprobe."""
-    cmd = 'ffprobe -i {} -show_entries format=duration -v quiet -of csv="p=0"'.format(file)
+    cmd = '/var/task/ffprobe -i {} -show_entries format=duration -v quiet -of csv="p=0"'.format(file)
     output = subprocess.check_output(
         cmd,
         shell=True, # Let this run in the shell
@@ -34,12 +35,13 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
         audio = ""
         audio_format = ""
         fOutName = fName[:-4] + "_trim" + fName[-4:]
-
         duration = get_duration(fName)
-        print("DURATION")
-        print(duration)
-        if duration > 10:
-            subprocess.call([FFMPEG_STATIC, '-ss', '10', '-t', '6', '-i', fName, fOutName])
+        trimmed = False
+        if duration > 10: 
+            #trim to 10 seconds from the middle
+            start = str(round(duration/2 - 5))
+            subprocess.call([FFMPEG_STATIC, '-ss', start, '-t', '10', '-i', fName, fOutName])
+            trimmed = True
         if 'mpeg' in mimeType:
             # audio = AudioSegment.from_mp3(fName)
             audio_format = 'mp3'
@@ -47,9 +49,10 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
             audio = AudioSegment.from_wav(fName)
             audio_format = 'wav'
 
-        with open(fOutName, 'rb') as data:
+        if trimmed:
+            fName = fOutName
+        with open(fName, 'rb') as data:
                 s3Client.put_object(Bucket="fssi2019-s3-code-support", Body=data, Key=objectKey)
-        print("uploaded")
 
         transcribe = boto3.client(
             'transcribe',
@@ -63,7 +66,8 @@ def processObject(objectKey, s3BucketName, s3BucketArn):
             TranscriptionJobName=job_name,
             Media={'MediaFileUri': job_uri},
             LanguageCode='en-US',
-            MediaFormat=audio_format
+            MediaFormat=audio_format,
+            OutputBucketName="fssi2019-s3-transcription-out"
         )
 
     # raise ValueError('object processing is not implemented')
