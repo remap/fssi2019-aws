@@ -82,9 +82,11 @@ def iterateBucket(bucketName, lambdaName, prefixFilter, batchSize, noPause):
                 nIter += 1
                 batch = []
                 if not noPause:
-                    reply = input('continue? [Y/n]')
+                    reply = input('continue? [Y/n/r -- run with no pause]')
                     if reply in ['n', 'N']:
                         break
+                    elif reply in ['R', 'r']:
+                        noPause = True
 
         print('items iterated {}, processed {}. avg processing time {:.2f}ms, '
               'total processing time {:.4f}sec'.format(nItems, nItemsProcessed,
