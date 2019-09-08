@@ -47,7 +47,7 @@ def processDbEvent(event, table, itemId, itemData, objectUrl):
     awsAuth = AWS4Auth(ACCESS_KEY, SECRET_KEY, region, service, session_token=SESSION_TOKEN)
 
     esIndex = mimeType
-    esType = 'media'
+    esType = '_doc'
     url = host + '/' + esIndex + '/' + esType
     itemHash = hashlib.sha1((table + itemId).encode('utf-8')).hexdigest()
     itemUrl = os.path.join(url, itemHash)
