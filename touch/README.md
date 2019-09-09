@@ -117,7 +117,7 @@ For example, you may make queries like:
 #### Outputs
 
 * Output1: `TableDAT`
-	* list of media URLs;
+	* 2 columns: `url` and `labels` -- list of labels with confidences for each image;
 * Output2: `CHOP`
 	* `inProgress` -- boolean value that shows whether the module is processing or not.
 
@@ -150,6 +150,8 @@ This module allows to asynchronously download media given list of URLs.
 
 * `Cache Folder` -- specify cache folder where downloaded media will be stored (default is `<project_dir>/fetcher_cache`)
 * `Cache Size` -- maximum number of files maintained in the cache; if number of downloaded files is bigger than this number, cache will be increased temorarily to accommodate all fresh downloads.
+
+> ☝️ Check out the [video](https://youtu.be/-bDQ_DcRONY) that shows `er_rekognition.tox` and `file-fetched.tox` modules in action.
 
 ### sns_pub.tox
 
