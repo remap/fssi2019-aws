@@ -88,6 +88,19 @@ This component contains helper functions that can be called using [MOD class in 
 
 > !!! This module is expected to be updated with more functions as we progress. Please make sure you have the latest version.
 
+#### Setup
+
+In order for this to work, this module must be place inside "local" component (create it if it doesn't exist) under your project (e.g. "/project1", not root!).
+
+#### Functions list
+
+Every function is documented: to access function full documentation use [docstrings](https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring), for example in Textport, type (assuming your modules is in "/project1/local") `print(mod('/project1/local/modules/td_utils').setOpError.__doc__)`.
+
+* `mod.td_utils.setOpError()` -- sets operator error message;
+* `mod.td_utils.clearOpError()` -- clears operator error message;
+* `mod.td_utils.runAsync()` -- runs function asynchronously in a separate thread and delivers result through the supplied callback.
+
+
 ### es_rekognition.tox
 
 This module allows one to query system for media that contains specified labels within the specified confidence levels.
@@ -138,25 +151,13 @@ This module allows to asynchronously download media given list of URLs.
 * `Cache Folder` -- specify cache folder where downloaded media will be stored (default is `<project_dir>/fetcher_cache`)
 * `Cache Size` -- maximum number of files maintained in the cache; if number of downloaded files is bigger than this number, cache will be increased temorarily to accommodate all fresh downloads.
 
-#### Setup
-
-In order for this to work, this module must be place inside "local" component (create it if it doesn't exist) under your project (e.g. "/project1", not root!).
-
-#### Functions list
-
-Every function is documented: to access function full documentation use [docstrings](https://www.python.org/dev/peps/pep-0257/#what-is-a-docstring), for example in Textport, type (assuming your modules is in "/project1/local") `print(mod('/project1/local/modules/td_utils').setOpError.__doc__)`.
-
-* `mod.td_utils.setOpError()` -- sets operator error message;
-* `mod.td_utils.clearOpError()` -- clears operator error message;
-* `mod.td_utils.runAsync()` -- runs function asynchronously in a separate thread and delivers result through the supplied callback.
-
 ### sns_pub.tox
 
 This component allows to publish arbitrary messages to a SNS topic (asynchronously, [modules.tox](#modules.tox) must be setup!) specified by topic name.
 
 #### Parameters
 
-* `SNS Topuc` -- SNS topic name;
+* `SNS Topic` -- SNS topic name;
 * `Publish` -- will trigger SNS publishing.
 
 #### Inputs
