@@ -56,7 +56,7 @@ def lambda_handler(event, context):
         experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
 
         # for each user in the experience -- update their exposure vector
-        experienceAggregate = [experienceState.emissionVector_]
+        experienceAggregate = []
         for visitorId in experienceOccupancy:
             # first -- retrieve current exposure vector
             visitorExposure = getVisitorExposure(visitorId)
@@ -68,7 +68,7 @@ def lambda_handler(event, context):
             # print('UPDATED VISITOR EXPOSURE', updatedExposure)
             # save visitor exposure back to db
             writeVisitorExposure(visitorId, updatedExposure)
-            experienceAggregate.append(visitorExposure)
+            experienceAggregate.append(updatedExposure)
         # write aggregate experience exposure
         writeExperienceExposure(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
     except:
