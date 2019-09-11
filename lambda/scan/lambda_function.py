@@ -87,9 +87,9 @@ def lambda_handler(event, context):
         
     mySnsClient = boto3.client('sns')
     if isEntering:
-        message={"defualt": {"event": "entry"}}
+        message={"defualt": {"event": "entry", "experience_id": experience_id, "visitor_id":visitor_id}}
     else:
-        message = {"defualt": {"event": "exit"}}
+        message = message={"defualt": {"event": "exit", "experience_id": experience_id, "visitor_id":visitor_id}}
     response = mySnsClient.publish(TopicArn='arn:aws:sns:us-west-1:756428767688:fssi2019-sns-visitor-event', Message=json.dumps(message))
 
 
