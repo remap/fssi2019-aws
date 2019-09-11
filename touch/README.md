@@ -170,3 +170,22 @@ This component allows to publish arbitrary messages to a SNS topic (asynchronous
 
 * `CHOP Out` -- "status" variable (0 - ok, 1 - error, 2 - processing);
 * `DAT Out` -- table with execution result/process.
+
+### sns_receiver.tox
+
+This component allows to receive messages from an arbitrary SNS topic (asynchronously, [modules.tox](#modules.tox) must be setup!) specified by topic name.
+
+#### Parameters
+
+* `Init` -- will initialize for receiving SNS messages;
+* `SNS Topic` -- SNS topic name.
+
+#### Inputs
+
+None.
+
+#### Outputs
+
+* `Dat Out` -- latest message received: 2 columns `timestamp` and `payload_json`.
+
+> Note: since SNS messages may arrive out of order, component checks timestamps of the received messages and outputs if received messages *only* comes after the previously received (i.e. only the latest message is output at any given time). To see last 10 messages, check `response_fifo` DAT inside the component.
