@@ -35,7 +35,7 @@ def updateExposure(exposureV, emissionV):
     return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
-    # print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
+    print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
     timeseriesAdd(FssiResources.DynamoDB.VisitorExposureTs,
       { 'visitor_id' : visitorId,
         'exposure' : json.dumps(exposureV.encode())})
@@ -45,6 +45,17 @@ def writeExperienceExposure(experienceId, exposureV):
     timeseriesAdd(FssiResources.DynamoDB.ExperienceExposureTs,
       { 'experience_id' : experienceId,
         'exposure' : json.dumps(exposureV.encode())})
+
+def publishSns(experienceId, exposureV):
+    snsMessageBody = { 'experience_id' : experienceId,
+                        'exposure' : json.dumps(exposureV.encode())}
+    mySnsClient = boto3.client('sns')
+    response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.ExposureUpdates),
+        Message=simplejson.dumps(snsMessageBody))
+    if response and type(response) == dict and 'MessageId' in response:
+        return
+    else:
+        print("unable to send SNS message: ", response)
 
 def lambda_handler(event, context):
     try:
@@ -71,6 +82,7 @@ def lambda_handler(event, context):
             experienceAggregate.append(updatedExposure)
         # write aggregate experience exposure
         writeExperienceExposure(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
+        publishSns(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
     except:
         type, err, tb = sys.exc_info()
         print('caught exception:', err)
