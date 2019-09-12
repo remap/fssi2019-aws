@@ -59,9 +59,14 @@ def scrapeMetadata(bs, url = None):
     r = bs.select('.field.field-name-field-murals-address.field-type-text-long.field-label-inline.clearfix > div.field-items > div > p')
     if len(r) >= 1:
          chldrn = [c for c in r[0].children]
-         meta['location'] = chldrn[0].strip()
-         if len(chldrn) > 1:
-             meta['location_url'] = chldrn[1]['href']
+         try:
+             meta['location'] = chldrn[0].strip()
+             if len(chldrn) > 1:
+                 meta['location_url'] = chldrn[1]['href']
+         except:
+             meta['location'] = 'n/a'
+             meta['location_url'] = 'n/a'
+             warnings.append({'url': url, 'msg':"can't find address field"})
     else:
         meta['location'] = 'n/a'
         meta['location_url'] = 'n/a'
@@ -114,14 +119,20 @@ def scrapeMetadata(bs, url = None):
 
     return meta
 
+skipIfHit = False
 def scrapeMuralData(muralUrl):
-    global scrapeFolder, warnings
+    global scrapeFolder, warnings, skipIfHit
     s = requests.Session()
+    muralKey = itemHash = hashlib.sha1((muralUrl).encode('utf-8')).hexdigest()
+    dirPath = os.path.join(scrapeFolder, muralKey)
+
+    if os.path.isdir(dirPath) and skipIfHit:
+        print('SKIP: cache hit for mural {}'.format(muralUrl))
+        return
+
     r = s.get(muralUrl)
     if r.ok:
         meta = {'muralUrl': muralUrl}
-        muralKey = itemHash = hashlib.sha1((muralUrl).encode('utf-8')).hexdigest()
-        dirPath = os.path.join(scrapeFolder, muralKey)
         imagesDir = os.path.join(dirPath, 'images')
         if not os.path.isdir(dirPath):
             os.makedirs(dirPath)
