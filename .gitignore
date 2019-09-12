@@ -127,3 +127,11 @@ dmypy.json
 
 # CSV
 .csv
+
+Backup/
+fetcher_cache/
+scraped/
+murals_scraped/
+*.html
+*.mov
+python
