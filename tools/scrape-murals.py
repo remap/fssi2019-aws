@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import hashlib
 import time
 import json
+from pathlib import Path
 
 scrapeFolder = 'scraped'
 
@@ -102,7 +103,11 @@ def scrapeMetadata(bs, url = None):
     r = bs.select('.field.field-name-field-murals-description.field-type-text-long.field-label-above > div.field-items > div > p')
     if len(r) >= 1:
         chldrn = [c for c in r[0].children]
-        meta['description'] = chldrn[0].strip()
+        try:
+            meta['description'] = chldrn[0].strip()
+        except:
+            meta['description'] = 'n/a'
+            warnings.append({'url':url, 'msg': "can't find description field"})
     else:
         meta['description'] = 'n/a'
         warnings.append({'url':url, 'msg': "can't find description field"})
@@ -147,11 +152,30 @@ def scrapeMuralData(muralUrl):
     else:
         raise ValueError('failed to retrieve html {}: {}'.format(r.status_code, r.text))
 
+def readTypesFromJsons(folder):
+    jsons = list(Path(folder).glob('**/*.json'))
+    print('found {} JSONs'.format(len(jsons)))
+    types = {}
+    for j in jsons:
+        with open(j, 'r') as f:
+            jObj = json.loads(f.read())
+            if 'types' in jObj:
+                for t in jObj['types']:
+                    if not t in types:
+                        types[t] = 0
+                    types[t] += 1
+            else:
+                print('file {} does not have "types" field'.format(j))
+    print('here are all the types')
+    for t,c in types.items():
+        print('\t{}\t{}'.format(t,c))
+
 if __name__ == '__main__':
     host = 'https://www.muralconservancy.org'
     nPages = 89
     poolSize = 10
     cacheFolder = sys.argv[1] if len(sys.argv) > 1 else './murals-scraped'
+    readTypes = True if len(sys.argv) == 3 and sys.argv[2] == '--types' else False
     if not os.path.isdir(scrapeFolder):
         os.makedirs(scrapeFolder)
     else:
@@ -171,21 +195,25 @@ if __name__ == '__main__':
     # url='https://www.muralconservancy.org/murals/dial-900-society'
     # url='https://www.muralconservancy.org/murals/circus-train'
     # url='https://www.muralconservancy.org/murals/goose-stepping-over-innocense'
+    # url='https://www.muralconservancy.org/murals/wind'
     # scrapeMuralData(url)
 
     if True:
-        try:
-            res = pool.map(scrapeMuralsUrls, pageUrls)
-            allUrls = []
-            for r in res:
-                allUrls.extend(r)
-            # print('TOTAL URLS', len(allUrls))
-            # print(allUrls[0])
-            print('found {} mural pages'.format(len(allUrls)))
+        if readTypes:
+            readTypesFromJsons(scrapeFolder)
+        else:
+            try:
+                res = pool.map(scrapeMuralsUrls, pageUrls)
+                allUrls = []
+                for r in res:
+                    allUrls.extend(r)
+                # print('TOTAL URLS', len(allUrls))
+                # print(allUrls[0])
+                print('found {} mural pages'.format(len(allUrls)))
 
-            res = pool.map(scrapeMuralData, allUrls)
-            print('done.')
-        except:
-            type, err, tb = sys.exc_info()
-            print('caught exception:', err)
-            traceback.print_exc(file=sys.stdout)
+                res = pool.map(scrapeMuralData, allUrls)
+                print('done.')
+            except:
+                type, err, tb = sys.exc_info()
+                print('caught exception:', err)
+                traceback.print_exc(file=sys.stdout)
