@@ -5,6 +5,10 @@ import uuid
 import os
 from fssi_common import *
 
+ExperienceTime = 1200
+ExposureAlpha = 1./ExperienceTime
+CullThreshold = 0.001
+
 class ExposureInput():
     ExperienceIdKey = 'experience_id'
     ExperienceStateKey = 'state'
@@ -32,10 +36,11 @@ def updateExposure(exposureV, emissionV):
     :return: Updated visitor exposure vector
     '''
 
-    return ExposureVector.simpleAverage([exposureV, emissionV])
+    return ExposureVector.weightedMean([exposureV, emissionV], [1-ExposureAlpha, ExposureAlpha])
+    # return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
-    print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
+    # print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
     timeseriesAdd(FssiResources.DynamoDB.VisitorExposureTs,
       { 'visitor_id' : visitorId,
         'exposure' : json.dumps(exposureV.encode())})
@@ -59,30 +64,32 @@ def publishSns(experienceId, exposureV):
 
 def lambda_handler(event, context):
     try:
-        snsRecord = event['Records'][0]['Sns']
-        messageDict = json.loads(snsRecord['Message'])
-        experienceState = ExperienceState(messageDict)
-        experienceOccupancy = getOccupancy(experienceState.experienceId_)
+        for record in event['Records']:
+            snsRecord = record['Sns']
+            messageDict = json.loads(snsRecord['Message'])
+            experienceState = ExperienceState(messageDict)
+            experienceOccupancy = getOccupancy(experienceState.experienceId_)
+            # experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
 
-        experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
-
-        # for each user in the experience -- update their exposure vector
-        experienceAggregate = []
-        for visitorId in experienceOccupancy:
-            # first -- retrieve current exposure vector
-            visitorExposure = getVisitorExposure(visitorId)
-            # now update exposure vector with current experience state
-            # print('VISITOR', visitorId)
-            # print('VISITOR EXPOSURE', visitorExposure)
-            # print('EXPERIENCE STATE', experienceState)
-            updatedExposure = updateExposure(visitorExposure, experienceState.emissionVector_)
-            # print('UPDATED VISITOR EXPOSURE', updatedExposure)
-            # save visitor exposure back to db
-            writeVisitorExposure(visitorId, updatedExposure)
-            experienceAggregate.append(updatedExposure)
-        # write aggregate experience exposure
-        writeExperienceExposure(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
-        publishSns(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
+            # for each user in the experience -- update their exposure vector
+            experienceAggregate = []
+            for visitorId in experienceOccupancy:
+                # first -- retrieve current exposure vector
+                visitorExposure = getVisitorExposure(visitorId)
+                # cull exposure vector
+                visitorExposure = visitorExposure.cull(CullThreshold)
+                # now update exposure vector with current experience state
+                # print('VISITOR', visitorId)
+                # print('VISITOR EXPOSURE', visitorExposure)
+                # print('EXPERIENCE STATE', experienceState)
+                updatedExposure = updateExposure(visitorExposure, experienceState.emissionVector_)
+                # print('UPDATED VISITOR EXPOSURE', updatedExposure)
+                # save visitor exposure back to db
+                writeVisitorExposure(visitorId, updatedExposure)
+                experienceAggregate.append(updatedExposure)
+            # write aggregate experience exposure
+            writeExperienceExposure(experienceState.experienceId_, ExposureVector.median(experienceAggregate))
+            # publishSns(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
     except:
         type, err, tb = sys.exc_info()
         print('caught exception:', err)

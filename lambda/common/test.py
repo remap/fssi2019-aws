@@ -135,9 +135,137 @@ def testExposureVectorSimpleAverage():
         assert abs(kws.intensity_ - iTarget) < 0.0001, "Unexpected average intensity value for {}: {} vs {}".format(kws.keyword_, kws.intensity_, iTarget)
         assert abs(kws.sentiment_ - sTarget) < 0.0001, "Unexpected average sentiment value for {}: {} vs {}".format(kws.keyword_, kws.sentiment_, sTarget)
 
+def testExposureVectorMultiply():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+                'h4':{'intensity':0.4,'sentiment':0.4},
+                'h5':{'intensity':0.5,'sentiment':0.5},
+              }
+    ev1 = ExposureVector(vecDict1)
+    mul = ev1 * 0.5
+
+    for kws in mul.kwStates():
+        iTarget = vecDict1[kws.keyword_]['intensity']
+        sTarget = vecDict1[kws.keyword_]['sentiment']
+        assert kws.intensity_ * 2 == iTarget, "Unexpected intensity value for {}: {} vs {}".format(kws.keyword_, kws.intensity_, iTarget)
+        assert kws.sentiment_ * 2 == iTarget, "Unexpected sentiment value for {}: {} vs {}".format(kws.keyword_, kws.sentiment_, sTarget)
+
+def testExposureVectorSum():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+              }
+    vecDict2 = {
+                'h1':{'intensity':0.3,'sentiment':-0.5},
+                'h4':{'intensity':0.8,'sentiment':0.7},
+                'h5':{'intensity':0.1,'sentiment':-0.1},
+              }
+    vecDict3 = {
+                'h3':{'intensity':0.3,'sentiment':0.3},
+                'h4':{'intensity':0.6,'sentiment':0.55},
+                'h5':{'intensity':0.3,'sentiment':0.2},
+              }
+    target = {
+              'h1':{'intensity':0.4,'sentiment':-0.4},
+              'h2':{'intensity':0.2,'sentiment':0.2},
+              'h3':{'intensity':0.6,'sentiment':0.6},
+              'h4':{'intensity':1.4,'sentiment':1.25},
+              'h5':{'intensity':0.4,'sentiment':0.1},
+              }
+    ev1 = ExposureVector(vecDict1)
+    ev2 = ExposureVector(vecDict2)
+    ev3 = ExposureVector(vecDict3)
+    sum = ExposureVector.sum([ev1, ev2, ev3])
+    for kws in sum.kwStates():
+        iTarget = target[kws.keyword_]['intensity']
+        sTarget = target[kws.keyword_]['sentiment']
+        assert kws.intensity_ == iTarget, "Unexpected intensity value for {}: {} vs {}".format(kws.keyword_, kws.intensity_, iTarget)
+        assert kws.sentiment_ == sTarget, "Unexpected sentiment value for {}: {} vs {}".format(kws.keyword_, kws.sentiment_, sTarget)
+
+def testExposureVectorWeightedMean():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+              }
+    vecDict2 = {
+                'h1':{'intensity':0.3,'sentiment':-0.5},
+                'h4':{'intensity':0.8,'sentiment':0.7},
+                'h5':{'intensity':0.1,'sentiment':-0.1},
+              }
+    vecDict3 = {
+                'h3':{'intensity':0.3,'sentiment':0.3},
+                'h4':{'intensity':0.6,'sentiment':0.55},
+                'h5':{'intensity':0.3,'sentiment':0.2},
+              }
+    target = {
+              'h1':{'intensity':0.15,'sentiment':-0.17},
+              'h2':{'intensity':0.06,'sentiment':0.06},
+              'h3':{'intensity':.09+.09,'sentiment':.09+.09},
+              'h4':{'intensity':.32+.18,'sentiment':.28+.165},
+              'h5':{'intensity':0.04+.09,'sentiment':-0.04+.06},
+              }
+    ev1 = ExposureVector(vecDict1)
+    ev2 = ExposureVector(vecDict2)
+    ev3 = ExposureVector(vecDict3)
+    sum = ExposureVector.weightedMean([ev1, ev2, ev3], [0.3, 0.4, 0.3])
+    for kws in sum.kwStates():
+        iTarget = target[kws.keyword_]['intensity']
+        sTarget = target[kws.keyword_]['sentiment']
+        assert abs(kws.intensity_ - iTarget) < .0000001, "Unexpected intensity value for {}: {} vs {}".format(kws.keyword_, kws.intensity_, iTarget)
+        assert abs(kws.sentiment_ - sTarget) < .0000001, "Unexpected sentiment value for {}: {} vs {}".format(kws.keyword_, kws.sentiment_, sTarget)
+
+def testExposureVectorCulling1():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.03,'sentiment':0.3},
+                'h4':{'intensity':0.04,'sentiment':0.4},
+                'h5':{'intensity':0.5,'sentiment':0.5},
+              }
+    ev1 = ExposureVector(vecDict1)
+    culled = ev1.cull(0.05)
+    assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
+
+def testExposureVectorCulling2():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.001},
+                'h2':{'intensity':0.002,'sentiment':0.2},
+                'h3':{'intensity':0.003,'sentiment':0.003},
+                'h4':{'intensity':0.04,'sentiment':0.4},
+                'h5':{'intensity':0.0005,'sentiment':-0.005},
+              }
+    ev1 = ExposureVector(vecDict1)
+    culled = ev1.cull(0.01, 0.01)
+    print(culled)
+    assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
+
+
+def testExposureVectorCulling3():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.0002,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+                'h4':{'intensity':0.0004,'sentiment':0.4},
+                'h5':{'intensity':0.5,'sentiment':0.5},
+              }
+    ev1 = ExposureVector(vecDict1)
+    culled = ev1.cull()
+    assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
+
+
 if __name__ == '__main__':
     testKeywordStateCreate()
     testExposureVectorCreate()
     testKeywordStateSimpleAverage()
     testExposureVectorSimpleAverage()
+    testExposureVectorMultiply()
+    testExposureVectorSum()
+    testExposureVectorWeightedMean()
+    testExposureVectorCulling1()
+    testExposureVectorCulling2()
+    testExposureVectorCulling3()
     print('all passed')

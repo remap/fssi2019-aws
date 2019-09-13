@@ -7,6 +7,7 @@ import sys, traceback, os
 import uuid
 from datetime import datetime
 import urllib.request, mimetypes
+import statistics
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
@@ -209,8 +210,8 @@ class KeywordState():
             raise ValueError('bad arguments in KeywordState constructor')
 
     def encode(self):
-        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
-        # return [ self.intensity_, self.sentiment_ ]
+        # return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
+        return [ self.intensity_, self.sentiment_ ]
 
     def __add__(self, other):
         if self.keyword_ == other.keyword_:
@@ -219,8 +220,22 @@ class KeywordState():
             return KeywordState(self.keyword_, i, s)
         raise ValueError("can't add up incompatible keyword states: {} and {}".format(self.keyword_, other.keyword_))
 
+    def __mul__(self, scalar):
+        return KeywordState(self.keyword_, self.intensity_*scalar, self.sentiment_*scalar)
+
     def __repr__(self):
         return repr(self.encode())
+
+    @classmethod
+    def sum(cls, states):
+        keyword = states[0].keyword_
+        intensitySum = 0
+        sentimentSum = 0
+        for kws in states:
+            if kws.keyword_ == keyword:
+                intensitySum += kws.intensity_
+                sentimentSum += kws.sentiment_
+        return KeywordState(keyword, intensitySum, sentimentSum)
 
     @classmethod
     def cummulateIntensity(cls, i1, i2):
@@ -247,6 +262,25 @@ class KeywordState():
                 sAvg = KeywordState.averageSentiment(stat['sentiments'])
                 averaged.append(KeywordState(k, iAvg, sAvg))
         return averaged
+
+    @classmethod
+    def simpleMedian(cls, kwStates):
+        '''Finds median for list of keyword states for a given dimension.
+
+        :param kwStates: List of KeywordState objects. Note: all keyword states
+                     should have the same keyword. States that have keyword
+                     different from the first state will be ignored.
+        :return: A KeywordState object that is a median for a given list
+        '''
+
+        keyword = states[0].keyword_
+        intensities = []
+        sentiments = []
+        for kws in kwStates:
+            if kws.keyword_ == keyword:
+                intensities.append(kws.intensity_)
+                sentiments.append(kws.sentiment_)
+        return KeywordState(keyword, statistics.median(intensities), statistics.median(sentiments))
 
     @classmethod
     def averageIntensity(cls, intensities):
@@ -298,8 +332,25 @@ class EmissionVector():
     def __add__(self,other):
         return EmissionVector.cummulateVectors(self, other)
 
+    def __mul__(self, scalar):
+        res = []
+        for kw, kws in self.kwStates_.items():
+            res.append(kws*scalar)
+        return EmissionVector(res)
+
     def __repr__(self):
         return repr(self.encode())
+
+    def cull(self, iThreshold = 0.001, sThreshold = None):
+        result = []
+        for kw, kws in self.kwStates_.items():
+            if sThreshold:
+                if kws.intensity_ > iThreshold or abs(kws.sentiment_) > sThreshold:
+                    result.append(kws)
+            else:
+                if kws.intensity_ > iThreshold:
+                    result.append(kws)
+        return EmissionVector(result)
 
     @classmethod
     def cummulateVectors(cls, v1, v2):
@@ -317,6 +368,44 @@ class EmissionVector():
             allKwStates.extend(v.kwStates())
         averaged = KeywordState.simpleAverage(allKwStates)
         return EmissionVector(averaged)
+
+    @classmethod
+    def sum(cls, vectors):
+        states = {}
+        for v in vectors:
+            for kws in v.kwStates():
+                if not kws.keyword_ in states:
+                    states[kws.keyword_] = []
+                states[kws.keyword_].append(kws)
+        sumV = []
+        for _,s in states.items():
+            sumV.append(KeywordState.sum(s))
+        return EmissionVector(sumV)
+
+    @classmethod
+    def median(cls, vectors):
+        states = {}
+        for v in vectors:
+            for kws in v.kwStates():
+                if not kws.keyword_ in states:
+                    states[kws.keyword_] = []
+                states[kws.keyword_].append(kws)
+        medianV = []
+        for _,s in states.items():
+            medianV.append(KeywordState.simpleMedian(s))
+        return EmissionVector(sumV)
+
+    @classmethod
+    def weightedMean(cls, vectors, weights):
+        if len(vectors) <= len(weights):
+            weightedVectors = []
+            idx = 0
+            for v in vectors:
+                weightedVectors.append(v * weights[idx])
+                idx += 1
+            return EmissionVector.sum(weightedVectors)
+        else:
+            return None
 
 ExposureVector = EmissionVector
 
