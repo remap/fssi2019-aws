@@ -499,7 +499,8 @@ class EmissionVector():
         filteredStates = []
         for rowS in range(0,len(filtered)):
             for colI in range(0,len(filtered[rowS])):
-                filteredStates.extend(filtered[rowS][colI])
+                for k in filtered[rowS][colI]:
+                    filteredStates.append(vector.kwStates_[k.keyword_])
         return EmissionVector(filteredStates)
 
 

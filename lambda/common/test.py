@@ -278,8 +278,24 @@ def testFiltering():
                 'h3':{'intensity':0.3,'sentiment':0.3},
               }
     ev = ExposureVector(vecDict1)
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.Low)
+    assert len(f.kwStates()) == 1
+    assert 'h1' in f.kwStates_
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.Medium)
+    assert len(f.kwStates()) == 1
+    assert 'h2' in f.kwStates_
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.High)
+    assert len(f.kwStates()) == 1
+    assert 'h3' in f.kwStates_
     f = ExposureVector.filter(ev, ExposureVector.Filter.Level.Medium|ExposureVector.Filter.Level.Low)
-    print(f)
+    assert len(f.kwStates()) == 2
+    assert 'h1' in f.kwStates_ and 'h2' in f.kwStates_
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.Medium|ExposureVector.Filter.Level.High)
+    assert len(f.kwStates()) == 2
+    assert 'h3' in f.kwStates_ and 'h2' in f.kwStates_
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.High|ExposureVector.Filter.Level.Low)
+    assert len(f.kwStates()) == 2
+    assert 'h1' in f.kwStates_ and 'h3' in f.kwStates_
 
 if __name__ == '__main__':
     testKeywordStateCreate()
