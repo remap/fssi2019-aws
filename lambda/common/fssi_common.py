@@ -210,8 +210,8 @@ class KeywordState():
             raise ValueError('bad arguments in KeywordState constructor: {} {}'.format(type(dictOrIntensity), type(sentiment)))
 
     def encode(self):
-        # return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
-        return [ self.intensity_, self.sentiment_ ]
+        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
+        # return [ self.intensity_, self.sentiment_ ]
 
     def __add__(self, other):
         if self.keyword_ == other.keyword_:
@@ -273,7 +273,7 @@ class KeywordState():
         :return: A KeywordState object that is a median for a given list
         '''
 
-        keyword = states[0].keyword_
+        keyword = kwStates[0].keyword_
         intensities = []
         sentiments = []
         for kws in kwStates:
@@ -393,7 +393,7 @@ class EmissionVector():
         medianV = []
         for _,s in states.items():
             medianV.append(KeywordState.simpleMedian(s))
-        return EmissionVector(sumV)
+        return EmissionVector(medianV)
 
     @classmethod
     def weightedMean(cls, vectors, weights):
@@ -411,12 +411,17 @@ ExposureVector = EmissionVector
 
 class ExperienceState():
     ExperienceIdKey='experience_id'
+    ExperienceIdKeyLegacy='exhibit_id'
     ExperienceStateKey='state'
 
     def __init__(self, dict):
         if not (ExperienceState.ExperienceIdKey in dict and ExperienceState.ExperienceStateKey in dict):
-            raise ValueError('malformed experience state message: {}'.format(dict))
-        self.experienceId_ = dict[ExperienceState.ExperienceIdKey]
+            if ExperienceState.ExperienceIdKeyLegacy in dict:
+                self.experienceId_ = dict[ExperienceState.ExperienceIdKeyLegacy]
+            else:
+                raise ValueError('malformed experience state message: {}'.format(dict))
+        if ExperienceState.ExperienceIdKey in dict:
+            self.experienceId_ = dict[ExperienceState.ExperienceIdKey]
         self.emissionVector_ = EmissionVector(dict[ExperienceState.ExperienceStateKey])
 
     def encode(self):
