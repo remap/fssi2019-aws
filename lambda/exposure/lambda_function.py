@@ -5,6 +5,7 @@ import uuid
 import os
 from fssi_common import *
 import simplejson
+import time
 
 ExperienceTime = 1200
 ExposureAlpha = 1./ExperienceTime
@@ -55,7 +56,8 @@ def writeExperienceExposure(experienceId, exposureV):
 
 def publishSns(experienceId, exposureV):
     snsMessageBody = { 'experience_id' : experienceId,
-                        'exposure' : json.dumps(exposureV.encode())}
+                        'exposure' : exposureV.encode(),
+                        't': time.time()}
     mySnsClient = boto3.client('sns')
     response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.ExposureUpdates),
         Message=simplejson.dumps(snsMessageBody))
