@@ -211,7 +211,7 @@ def testExposureVectorWeightedMean():
     ev1 = ExposureVector(vecDict1)
     ev2 = ExposureVector(vecDict2)
     ev3 = ExposureVector(vecDict3)
-    sum = ExposureVector.weightedMean([ev1, ev2, ev3], [0.3, 0.4, 0.3])
+    sum = ExposureVector.weightedSum([ev1, ev2, ev3], [0.3, 0.4, 0.3])
     for kws in sum.kwStates():
         iTarget = target[kws.keyword_]['intensity']
         sTarget = target[kws.keyword_]['sentiment']
@@ -227,7 +227,7 @@ def testExposureVectorCulling1():
                 'h5':{'intensity':0.5,'sentiment':0.5},
               }
     ev1 = ExposureVector(vecDict1)
-    culled = ev1.cull(0.05)
+    culled = ev1.cull(0, 0.05)
     assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
 
 def testExposureVectorCulling2():
@@ -239,8 +239,8 @@ def testExposureVectorCulling2():
                 'h5':{'intensity':0.0005,'sentiment':-0.005},
               }
     ev1 = ExposureVector(vecDict1)
-    culled = ev1.cull(0.01, 0.01)
-    print(culled)
+    culled = ev1.cull(0, 0.01, 0.01)
+    # print(culled)
     assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
 
 
@@ -253,9 +253,33 @@ def testExposureVectorCulling3():
                 'h5':{'intensity':0.5,'sentiment':0.5},
               }
     ev1 = ExposureVector(vecDict1)
-    culled = ev1.cull()
+    culled = ev1.cull(0)
     assert len(culled.kwStates()) == 3, "Unexpected number of keyword states in Exposure vector: {} vs {}".format(len(culled.kwStates()), 3)
 
+def testNormalize():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+              }
+    ev = ExposureVector(vecDict1)
+    n = ExposureVector.normalize(ev)
+    assert n.kwStates_['h1'].intensity_ == 0
+    assert n.kwStates_['h1'].sentiment_ == 0
+    assert n.kwStates_['h2'].intensity_ - 0.5 < .0000001
+    assert n.kwStates_['h2'].sentiment_ - 0.5 < .0000001
+    assert n.kwStates_['h3'].intensity_ == 1.
+    assert n.kwStates_['h3'].sentiment_ == 1.
+
+def testFiltering():
+    vecDict1 = {
+                'h1':{'intensity':0.1,'sentiment':0.1},
+                'h2':{'intensity':0.2,'sentiment':0.2},
+                'h3':{'intensity':0.3,'sentiment':0.3},
+              }
+    ev = ExposureVector(vecDict1)
+    f = ExposureVector.filter(ev, ExposureVector.Filter.Level.Medium|ExposureVector.Filter.Level.Low)
+    print(f)
 
 if __name__ == '__main__':
     testKeywordStateCreate()
@@ -268,4 +292,6 @@ if __name__ == '__main__':
     testExposureVectorCulling1()
     testExposureVectorCulling2()
     testExposureVectorCulling3()
+    testNormalize()
+    testFiltering()
     print('all passed')

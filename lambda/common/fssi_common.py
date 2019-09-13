@@ -305,6 +305,16 @@ class KeywordState():
         return sum(sentiments) / len(sentiments)
 
 class EmissionVector():
+    class Filter():
+        class Value():
+            Intensity = 1<<0
+            Sentiment = 1<<1
+
+        class Level():
+            Low = 1<<0
+            Medium = 1<<1
+            High = 1<<2
+
     def __init__(self, arg):
         self.timestamp_ = None
         self.kwStates_ = {}
@@ -427,6 +437,71 @@ class EmissionVector():
             return EmissionVector.sum(weightedVectors)
         else:
             return None
+
+    @classmethod
+    def normalize(cls, vector):
+        '''Normalizes intensity and sentiment values accross all keywords in
+            the vector
+        '''
+        ilist = [k.intensity_ for k in vector.kwStates()]
+        slist = [s.sentiment_ for s in vector.kwStates()]
+        edges = {'imax':max(ilist), 'imin': min(ilist), 'smax':max(slist), 'smin':min(slist)}
+        normalized = []
+        for k in vector.kwStates():
+            iN = (k.intensity_ - edges['imin']) / (edges['imax'] - edges['imin'])
+            sN = (k.sentiment_ - edges['smin']) / (edges['smax'] - edges['smin'])
+            normalized.append(KeywordState(k.keyword_, iN, sN, k.age_))
+        return EmissionVector(normalized)
+
+    @classmethod
+    def filter(cls, vector, filter, filterBy = Filter.Value.Intensity|Filter.Value.Sentiment):
+        normalized = EmissionVector.normalize(vector)
+        nBins = 3
+        w = 1/float(nBins)
+        bins = [[ [] for col in range(nBins)] for row in range(nBins)]
+        # iFiltered = {bin: [] for bin in range(0,nBins)}
+        # sFiltered = {[] for bin in range(0,nBins)}
+        for k in normalized.kwStates():
+            for sBin in range(0,nBins):
+                leftEdge = w*sBin
+                rightEdge = w*(sBin+1) if sBin < nBins-1 else w*(sBin+1)+.1
+                if k.sentiment_ >= leftEdge and k.sentiment_ < rightEdge:
+                    # sFiltered[bin].append(k)
+                    for iBin in range(0,nBins):
+                        leftEdge = w*iBin
+                        rightEdge = w*(iBin+1) if iBin < nBins-1 else w*(iBin+1)+.1
+                        if k.intensity_ >= leftEdge and k.intensity_ < rightEdge:
+                            bins[sBin][iBin].append(k)
+                # if k.intensity_ >= leftEdge and k.intensity_ < rightEdge:
+                #     iFiltered[bin].append(k)
+
+        selectedBins = []
+        # for three filter levels, divide by three
+        binNumW = float(nBins) / 3.
+        if cls.Filter.Level.Low & filter:
+            selectedBins.extend(range(0, round(binNumW)))
+        if cls.Filter.Level.Medium & filter:
+            selectedBins.extend(range(round(binNumW), round(2*binNumW)))
+        if cls.Filter.Level.High & filter:
+            selectedBins.extend(range(round(2*binNumW), nBins))
+        # print(selectedBins)
+
+        filtered = []
+        if filterBy&cls.Filter.Value.Sentiment:
+            # filtered = [bins[b] for b in selectedBins]
+            def filterBin(binIdx): return bins[binIdx] if binIdx in selectedBins else []
+            filtered = [filterBin(b) for b in range(nBins)]
+        else:
+            filtered = bins
+        # print(filtered)
+        if filter&cls.Filter.Value.Intensity:
+            filtered = [filtered[b] for b in selectedBins]
+        filteredStates = []
+        for rowS in range(0,len(filtered)):
+            for colI in range(0,len(filtered[rowS])):
+                filteredStates.extend(filtered[rowS][colI])
+        return EmissionVector(filteredStates)
+
 
 ExposureVector = EmissionVector
 
