@@ -6,7 +6,7 @@
 # pip3 install nltk
 #
 #
-
+from fssi_common import *
 import random, time, json
 import nltk
 nltk.download('wordnet')
@@ -101,9 +101,10 @@ if __name__ == "__main__":
 #
 		emission = { "experience_id" : "tactile" ,	 "state": {}, "t" : time.time() }
 		for tag in bag:
-			emission['state'][tag.tag] = {}
-			emission['state'][tag.tag]['sentiment'] = tag.sentiment
-			emission['state'][tag.tag]['intensity'] = tag.intensity
+			kws = KeywordState(tag.tag, tag.intensity, tag.sentiment)
+			emission['state'][tag.tag] = kws.encode()
+			# emission['state'][tag.tag].append(tag.intensity)
+			# emission['state'][tag.tag].append(tag.sentiment)
 		print(json.dumps(emission, sort_keys=True, indent=4))
 
 		try:

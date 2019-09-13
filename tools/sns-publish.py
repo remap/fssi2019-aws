@@ -33,13 +33,13 @@ def publishSns(msgBody):
 emissionV = {
               "state":
                 {
-                    "venicebeach": { "sentiment": -0.9529862775779678, "intensity": 0.8087875166357418} ,
-                    "marinadelrey": {"sentiment": 0.74881033573114, "intensity": 0.11315793978945798},
-                    "lebaneesetaco": {"sentiment": -0.3213123222477674, "intensity": 0.7539981625252824},
-                    "soup": {"sentiment": -0.08542835269519045, "intensity": 0.2429661845336737},
-                    "malibu": {"sentiment": 0.37080509395715633, "intensity": 0.4101501834528354}
+                    "venicebeach":  [0.8087875166357418, -0.9529862775779678] ,
+                    "marinadelrey": [0.11315793978945798,  0.74881033573114],
+                    "lebaneesetaco": [0.7539981625252824, -0.3213123222477674],
+                    "soup": [0.2429661845336737, -0.08542835269519045],
+                    "malibu": [0.4101501834528354, 0.37080509395715633]
                 },
-              "exhibit_id": "main_exhibit\\n"
+              "experience_id": "main_exhibit\\n"
              }
 
 res = publishSns(json.dumps(emissionV))

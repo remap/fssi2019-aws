@@ -190,10 +190,10 @@ def processedReply():
 ################################################################################
 class KeywordState():
     def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
-        if isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
+        if (isinstance(sentiment,float) or isinstance(sentiment,int)) and (isinstance(dictOrIntensity, float) or isinstance(dictOrIntensity, int)):
             self.keyword_ = keyword
-            self.intensity_ = dictOrIntensity
-            self.sentiment_ = sentiment
+            self.intensity_ = float(dictOrIntensity)
+            self.sentiment_ = float(sentiment)
         elif isinstance(dictOrIntensity, dict):
             self.keyword_ = keyword
             self.intensity_ = 0.
@@ -207,7 +207,7 @@ class KeywordState():
             self.intensity_ = keyword.intensity_
             self.sentiment_ = keyword.sentiment_
         else:
-            raise ValueError('bad arguments in KeywordState constructor')
+            raise ValueError('bad arguments in KeywordState constructor: {} {}'.format(type(dictOrIntensity), type(sentiment)))
 
     def encode(self):
         # return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
