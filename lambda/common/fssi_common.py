@@ -189,39 +189,48 @@ def processedReply():
 # VISITOR MANAGEMENT CLASSES
 ################################################################################
 class KeywordState():
-    def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
+    def __init__(self, keyword, dictOrIntensity = None, sentiment = None, age = None):
         if (isinstance(sentiment,float) or isinstance(sentiment,int)) and (isinstance(dictOrIntensity, float) or isinstance(dictOrIntensity, int)):
             self.keyword_ = keyword
             self.intensity_ = float(dictOrIntensity)
             self.sentiment_ = float(sentiment)
+            if age:
+                self.age_ = age
+            else:
+                self.age_ = 0.
         elif isinstance(dictOrIntensity, dict):
             self.keyword_ = keyword
             self.intensity_ = 0.
             self.sentiment_ = 1.
+            self.age_ = 0.
             if 'intensity' in dictOrIntensity:
                 self.intensity_ = dictOrIntensity['intensity']
             if 'sentiment' in dictOrIntensity:
                 self.sentiment_ = dictOrIntensity['sentiment']
+            if 'age' in dictOrIntensity:
+                self.age_ = dictOrIntensity['age']
         elif isinstance(keyword, KeywordState):
             self.keyword_ = keyword.keyword_
             self.intensity_ = keyword.intensity_
             self.sentiment_ = keyword.sentiment_
+            self.age_ = keyword.age_
         else:
             raise ValueError('bad arguments in KeywordState constructor: {} {}'.format(type(dictOrIntensity), type(sentiment)))
 
     def encode(self):
-        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
-        # return [ self.intensity_, self.sentiment_ ]
+        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_, 'age': self.age_}
+        # return [ self.intensity_, self.sentiment_, self.age_ ]
 
     def __add__(self, other):
         if self.keyword_ == other.keyword_:
             i = KeywordState.cummulateIntensity(self.intensity_, other.intensity_)
             s = KeywordState.cummulateSentiment(self.sentiment_, other.sentiment_)
-            return KeywordState(self.keyword_, i, s)
+            a = max(self.age_, other.age_)
+            return KeywordState(self.keyword_, i, s, a)
         raise ValueError("can't add up incompatible keyword states: {} and {}".format(self.keyword_, other.keyword_))
 
     def __mul__(self, scalar):
-        return KeywordState(self.keyword_, self.intensity_*scalar, self.sentiment_*scalar)
+        return KeywordState(self.keyword_, self.intensity_*scalar, self.sentiment_*scalar, self.age_)
 
     def __repr__(self):
         return repr(self.encode())
@@ -231,11 +240,14 @@ class KeywordState():
         keyword = states[0].keyword_
         intensitySum = 0
         sentimentSum = 0
+        a = 0
         for kws in states:
             if kws.keyword_ == keyword:
                 intensitySum += kws.intensity_
                 sentimentSum += kws.sentiment_
-        return KeywordState(keyword, intensitySum, sentimentSum)
+                if kws.age_ > a:
+                    a = kws.age_
+        return KeywordState(keyword, intensitySum, sentimentSum, a)
 
     @classmethod
     def cummulateIntensity(cls, i1, i2):
@@ -276,11 +288,13 @@ class KeywordState():
         keyword = kwStates[0].keyword_
         intensities = []
         sentiments = []
+        ages = []
         for kws in kwStates:
             if kws.keyword_ == keyword:
                 intensities.append(kws.intensity_)
                 sentiments.append(kws.sentiment_)
-        return KeywordState(keyword, statistics.median(intensities), statistics.median(sentiments))
+                ages.append(kws.age_)
+        return KeywordState(keyword, statistics.median(intensities), statistics.median(sentiments), statistics.median(ages))
 
     @classmethod
     def averageIntensity(cls, intensities):
@@ -341,16 +355,23 @@ class EmissionVector():
     def __repr__(self):
         return repr(self.encode())
 
-    def cull(self, iThreshold = 0.001, sThreshold = None):
+    def cull(self, ageThreshold, iThreshold = 0.001, sThreshold = None):
         result = []
         for kw, kws in self.kwStates_.items():
-            if sThreshold:
-                if kws.intensity_ > iThreshold or abs(kws.sentiment_) > sThreshold:
-                    result.append(kws)
+            if kws.age_ >= ageThreshold:
+                if sThreshold:
+                    if kws.intensity_ > iThreshold or abs(kws.sentiment_) > sThreshold:
+                        result.append(kws)
+                else:
+                    if kws.intensity_ > iThreshold:
+                        result.append(kws)
             else:
-                if kws.intensity_ > iThreshold:
-                    result.append(kws)
+                result.append(kws)
         return EmissionVector(result)
+
+    def ageBy(self, delta):
+        for kw, kws in self.kwStates_.items():
+            kws.age_ += delta
 
     @classmethod
     def cummulateVectors(cls, v1, v2):

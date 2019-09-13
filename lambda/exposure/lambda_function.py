@@ -4,10 +4,12 @@ import sys, traceback
 import uuid
 import os
 from fssi_common import *
+import simplejson
 
 ExperienceTime = 1200
 ExposureAlpha = 1./ExperienceTime
-CullThreshold = 0.001
+CullAgeThreshold = ExposureAlpha * 60
+CullIntensityThreshold = 0.001
 
 class ExposureInput():
     ExperienceIdKey = 'experience_id'
@@ -76,8 +78,10 @@ def lambda_handler(event, context):
             for visitorId in experienceOccupancy:
                 # first -- retrieve current exposure vector
                 visitorExposure = getVisitorExposure(visitorId)
+                # age exposure vector
+                visitorExposure.ageBy(ExposureAlpha)
                 # cull exposure vector
-                visitorExposure = visitorExposure.cull(CullThreshold)
+                visitorExposure = visitorExposure.cull(CullAgeThreshold, CullIntensityThreshold)
                 # now update exposure vector with current experience state
                 # print('VISITOR', visitorId)
                 # print('VISITOR EXPOSURE', visitorExposure)
@@ -88,8 +92,9 @@ def lambda_handler(event, context):
                 writeVisitorExposure(visitorId, updatedExposure)
                 experienceAggregate.append(updatedExposure)
             # write aggregate experience exposure
-            writeExperienceExposure(experienceState.experienceId_, ExposureVector.median(experienceAggregate))
-            # publishSns(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
+            aggregate = ExposureVector.median(experienceAggregate)
+            writeExperienceExposure(experienceState.experienceId_, aggregate)
+            publishSns(experienceState.experienceId_, aggregate)
     except:
         type, err, tb = sys.exc_info()
         print('caught exception:', err)
