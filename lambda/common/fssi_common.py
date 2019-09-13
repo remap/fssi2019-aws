@@ -417,7 +417,7 @@ class EmissionVector():
         return EmissionVector(medianV)
 
     @classmethod
-    def weightedMean(cls, vectors, weights):
+    def weightedSum(cls, vectors, weights):
         if len(vectors) <= len(weights):
             weightedVectors = []
             idx = 0
