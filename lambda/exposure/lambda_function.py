@@ -9,7 +9,7 @@ import simplejson
 ExperienceTime = 1200
 ExposureAlpha = 1./ExperienceTime
 CullAgeThreshold = ExposureAlpha * 60
-CullIntensityThreshold = 0.001
+CullIntensityThreshold = 0.01
 
 class ExposureInput():
     ExperienceIdKey = 'experience_id'
@@ -38,7 +38,7 @@ def updateExposure(exposureV, emissionV):
     :return: Updated visitor exposure vector
     '''
 
-    return ExposureVector.weightedMean([exposureV, emissionV], [1-ExposureAlpha, ExposureAlpha])
+    return ExposureVector.weightedSum([exposureV, emissionV], [1-ExposureAlpha, ExposureAlpha])
     # return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
