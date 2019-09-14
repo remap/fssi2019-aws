@@ -21,7 +21,9 @@ def getOccupancy(experienceId):
     # the occupancy is an array of visitor IDs (QR codes)
     occupancyTable = dynamoDbResource.Table(FssiResources.DynamoDB.Occupancy)
     result = occupancyTable.get_item(Key={'id' : experienceId})
-    return result['Item']['occupancy']
+    if 'Item' in result:
+        return result['Item']['occupancy']
+    return None
 
 def getVisitorExposure(visitorId):
     response = timeseriesGetLatestForKey(FssiResources.DynamoDB.VisitorExposureTs,
@@ -38,9 +40,7 @@ def updateExposure(exposureV, emissionV):
     :param emissionV: Experience emission vector (state)
     :return: Updated visitor exposure vector
     '''
-
     return ExposureVector.weightedSum([exposureV, emissionV], [1-ExposureAlpha, ExposureAlpha])
-    # return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
     # print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
@@ -73,6 +73,9 @@ def lambda_handler(event, context):
             messageDict = json.loads(snsRecord['Message'])
             experienceState = ExperienceState(messageDict)
             experienceOccupancy = getOccupancy(experienceState.experienceId_)
+            if not experienceOccupancy:
+                print('no occupancy in the space {}'.format(experienceState.experienceId_))
+                return
             # experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
 
             # for each user in the experience -- update their exposure vector
