@@ -7,6 +7,7 @@ import sys, traceback, os
 import uuid
 from datetime import datetime
 import urllib.request, mimetypes
+import statistics
 
 CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
 
@@ -188,39 +189,65 @@ def processedReply():
 # VISITOR MANAGEMENT CLASSES
 ################################################################################
 class KeywordState():
-    def __init__(self, keyword, dictOrIntensity = None, sentiment = None):
-        if isinstance(sentiment,float) and isinstance(dictOrIntensity, float):
+    def __init__(self, keyword, dictOrIntensity = None, sentiment = None, age = None):
+        if (isinstance(sentiment,float) or isinstance(sentiment,int)) and (isinstance(dictOrIntensity, float) or isinstance(dictOrIntensity, int)):
             self.keyword_ = keyword
-            self.intensity_ = dictOrIntensity
-            self.sentiment_ = sentiment
+            self.intensity_ = float(dictOrIntensity)
+            self.sentiment_ = float(sentiment)
+            if age:
+                self.age_ = age
+            else:
+                self.age_ = 0.
         elif isinstance(dictOrIntensity, dict):
             self.keyword_ = keyword
             self.intensity_ = 0.
             self.sentiment_ = 1.
+            self.age_ = 0.
             if 'intensity' in dictOrIntensity:
                 self.intensity_ = dictOrIntensity['intensity']
             if 'sentiment' in dictOrIntensity:
                 self.sentiment_ = dictOrIntensity['sentiment']
+            if 'age' in dictOrIntensity:
+                self.age_ = dictOrIntensity['age']
         elif isinstance(keyword, KeywordState):
             self.keyword_ = keyword.keyword_
             self.intensity_ = keyword.intensity_
             self.sentiment_ = keyword.sentiment_
+            self.age_ = keyword.age_
         else:
-            raise ValueError('bad arguments in KeywordState constructor')
+            raise ValueError('bad arguments in KeywordState constructor: {} {}'.format(type(dictOrIntensity), type(sentiment)))
 
     def encode(self):
-        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_}
-        # return [ self.intensity_, self.sentiment_ ]
+        return {'intensity' : self.intensity_, 'sentiment' : self.sentiment_, 'age': self.age_}
+        # return [ self.intensity_, self.sentiment_, self.age_ ]
 
     def __add__(self, other):
         if self.keyword_ == other.keyword_:
             i = KeywordState.cummulateIntensity(self.intensity_, other.intensity_)
             s = KeywordState.cummulateSentiment(self.sentiment_, other.sentiment_)
-            return KeywordState(self.keyword_, i, s)
+            a = max(self.age_, other.age_)
+            return KeywordState(self.keyword_, i, s, a)
         raise ValueError("can't add up incompatible keyword states: {} and {}".format(self.keyword_, other.keyword_))
+
+    def __mul__(self, scalar):
+        return KeywordState(self.keyword_, self.intensity_*scalar, self.sentiment_*scalar, self.age_)
 
     def __repr__(self):
         return repr(self.encode())
+
+    @classmethod
+    def sum(cls, states):
+        keyword = states[0].keyword_
+        intensitySum = 0
+        sentimentSum = 0
+        a = 0
+        for kws in states:
+            if kws.keyword_ == keyword:
+                intensitySum += kws.intensity_
+                sentimentSum += kws.sentiment_
+                if kws.age_ > a:
+                    a = kws.age_
+        return KeywordState(keyword, intensitySum, sentimentSum, a)
 
     @classmethod
     def cummulateIntensity(cls, i1, i2):
@@ -249,6 +276,27 @@ class KeywordState():
         return averaged
 
     @classmethod
+    def simpleMedian(cls, kwStates):
+        '''Finds median for list of keyword states for a given dimension.
+
+        :param kwStates: List of KeywordState objects. Note: all keyword states
+                     should have the same keyword. States that have keyword
+                     different from the first state will be ignored.
+        :return: A KeywordState object that is a median for a given list
+        '''
+
+        keyword = kwStates[0].keyword_
+        intensities = []
+        sentiments = []
+        ages = []
+        for kws in kwStates:
+            if kws.keyword_ == keyword:
+                intensities.append(kws.intensity_)
+                sentiments.append(kws.sentiment_)
+                ages.append(kws.age_)
+        return KeywordState(keyword, statistics.median(intensities), statistics.median(sentiments), statistics.median(ages))
+
+    @classmethod
     def averageIntensity(cls, intensities):
         return sum(intensities) / len(intensities)
 
@@ -257,6 +305,16 @@ class KeywordState():
         return sum(sentiments) / len(sentiments)
 
 class EmissionVector():
+    class Filter():
+        class Value():
+            Intensity = 1<<0
+            Sentiment = 1<<1
+
+        class Level():
+            Low = 1<<0
+            Medium = 1<<1
+            High = 1<<2
+
     def __init__(self, arg):
         self.timestamp_ = None
         self.kwStates_ = {}
@@ -298,8 +356,32 @@ class EmissionVector():
     def __add__(self,other):
         return EmissionVector.cummulateVectors(self, other)
 
+    def __mul__(self, scalar):
+        res = []
+        for kw, kws in self.kwStates_.items():
+            res.append(kws*scalar)
+        return EmissionVector(res)
+
     def __repr__(self):
         return repr(self.encode())
+
+    def cull(self, ageThreshold, iThreshold = 0.001, sThreshold = None):
+        result = []
+        for kw, kws in self.kwStates_.items():
+            if kws.age_ >= ageThreshold:
+                if sThreshold:
+                    if kws.intensity_ > iThreshold or abs(kws.sentiment_) > sThreshold:
+                        result.append(kws)
+                else:
+                    if kws.intensity_ > iThreshold:
+                        result.append(kws)
+            else:
+                result.append(kws)
+        return EmissionVector(result)
+
+    def ageBy(self, delta):
+        for kw, kws in self.kwStates_.items():
+            kws.age_ += delta
 
     @classmethod
     def cummulateVectors(cls, v1, v2):
@@ -318,16 +400,125 @@ class EmissionVector():
         averaged = KeywordState.simpleAverage(allKwStates)
         return EmissionVector(averaged)
 
+    @classmethod
+    def sum(cls, vectors):
+        states = {}
+        for v in vectors:
+            for kws in v.kwStates():
+                if not kws.keyword_ in states:
+                    states[kws.keyword_] = []
+                states[kws.keyword_].append(kws)
+        sumV = []
+        for _,s in states.items():
+            sumV.append(KeywordState.sum(s))
+        return EmissionVector(sumV)
+
+    @classmethod
+    def median(cls, vectors):
+        states = {}
+        for v in vectors:
+            for kws in v.kwStates():
+                if not kws.keyword_ in states:
+                    states[kws.keyword_] = []
+                states[kws.keyword_].append(kws)
+        medianV = []
+        for _,s in states.items():
+            medianV.append(KeywordState.simpleMedian(s))
+        return EmissionVector(medianV)
+
+    @classmethod
+    def weightedSum(cls, vectors, weights):
+        if len(vectors) <= len(weights):
+            weightedVectors = []
+            idx = 0
+            for v in vectors:
+                weightedVectors.append(v * weights[idx])
+                idx += 1
+            return EmissionVector.sum(weightedVectors)
+        else:
+            return None
+
+    @classmethod
+    def normalize(cls, vector):
+        '''Normalizes intensity and sentiment values accross all keywords in
+            the vector
+        '''
+        ilist = [k.intensity_ for k in vector.kwStates()]
+        slist = [s.sentiment_ for s in vector.kwStates()]
+        edges = {'imax':max(ilist), 'imin': min(ilist), 'smax':max(slist), 'smin':min(slist)}
+        normalized = []
+        for k in vector.kwStates():
+            iN = (k.intensity_ - edges['imin']) / (edges['imax'] - edges['imin'])
+            sN = (k.sentiment_ - edges['smin']) / (edges['smax'] - edges['smin'])
+            normalized.append(KeywordState(k.keyword_, iN, sN, k.age_))
+        return EmissionVector(normalized)
+
+    @classmethod
+    def filter(cls, vector, filter, filterBy = Filter.Value.Intensity|Filter.Value.Sentiment):
+        normalized = EmissionVector.normalize(vector)
+        nBins = 3
+        w = 1/float(nBins)
+        bins = [[ [] for col in range(nBins)] for row in range(nBins)]
+        # iFiltered = {bin: [] for bin in range(0,nBins)}
+        # sFiltered = {[] for bin in range(0,nBins)}
+        for k in normalized.kwStates():
+            for sBin in range(0,nBins):
+                leftEdge = w*sBin
+                rightEdge = w*(sBin+1) if sBin < nBins-1 else w*(sBin+1)+.1
+                if k.sentiment_ >= leftEdge and k.sentiment_ < rightEdge:
+                    # sFiltered[bin].append(k)
+                    for iBin in range(0,nBins):
+                        leftEdge = w*iBin
+                        rightEdge = w*(iBin+1) if iBin < nBins-1 else w*(iBin+1)+.1
+                        if k.intensity_ >= leftEdge and k.intensity_ < rightEdge:
+                            bins[sBin][iBin].append(k)
+                # if k.intensity_ >= leftEdge and k.intensity_ < rightEdge:
+                #     iFiltered[bin].append(k)
+
+        selectedBins = []
+        # for three filter levels, divide by three
+        binNumW = float(nBins) / 3.
+        if cls.Filter.Level.Low & filter:
+            selectedBins.extend(range(0, round(binNumW)))
+        if cls.Filter.Level.Medium & filter:
+            selectedBins.extend(range(round(binNumW), round(2*binNumW)))
+        if cls.Filter.Level.High & filter:
+            selectedBins.extend(range(round(2*binNumW), nBins))
+        # print(selectedBins)
+
+        filtered = []
+        if filterBy&cls.Filter.Value.Sentiment:
+            # filtered = [bins[b] for b in selectedBins]
+            def filterBin(binIdx): return bins[binIdx] if binIdx in selectedBins else []
+            filtered = [filterBin(b) for b in range(nBins)]
+        else:
+            filtered = bins
+        # print(filtered)
+        if filter&cls.Filter.Value.Intensity:
+            filtered = [filtered[b] for b in selectedBins]
+        filteredStates = []
+        for rowS in range(0,len(filtered)):
+            for colI in range(0,len(filtered[rowS])):
+                for k in filtered[rowS][colI]:
+                    filteredStates.append(vector.kwStates_[k.keyword_])
+        return EmissionVector(filteredStates)
+
+
 ExposureVector = EmissionVector
 
 class ExperienceState():
     ExperienceIdKey='experience_id'
+    ExperienceIdKeyLegacy='exhibit_id'
     ExperienceStateKey='state'
 
     def __init__(self, dict):
         if not (ExperienceState.ExperienceIdKey in dict and ExperienceState.ExperienceStateKey in dict):
-            raise ValueError('malformed experience state message: {}'.format(dict))
-        self.experienceId_ = dict[ExperienceState.ExperienceIdKey]
+            if ExperienceState.ExperienceIdKeyLegacy in dict:
+                self.experienceId_ = dict[ExperienceState.ExperienceIdKeyLegacy]
+            else:
+                raise ValueError('malformed experience state message: {}'.format(dict))
+        if ExperienceState.ExperienceIdKey in dict:
+            self.experienceId_ = dict[ExperienceState.ExperienceIdKey]
         self.emissionVector_ = EmissionVector(dict[ExperienceState.ExperienceStateKey])
 
     def encode(self):

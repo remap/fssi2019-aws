@@ -4,6 +4,13 @@ import sys, traceback
 import uuid
 import os
 from fssi_common import *
+import simplejson
+import time
+
+ExperienceTime = 1200
+ExposureAlpha = 1./ExperienceTime
+CullAgeThreshold = ExposureAlpha * 60
+CullIntensityThreshold = 0.01
 
 class ExposureInput():
     ExperienceIdKey = 'experience_id'
@@ -32,10 +39,11 @@ def updateExposure(exposureV, emissionV):
     :return: Updated visitor exposure vector
     '''
 
-    return ExposureVector.simpleAverage([exposureV, emissionV])
+    return ExposureVector.weightedSum([exposureV, emissionV], [1-ExposureAlpha, ExposureAlpha])
+    # return ExposureVector.simpleAverage([exposureV, emissionV])
 
 def writeVisitorExposure(visitorId, exposureV):
-    print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
+    # print('VISITOR EXPOSURE UPDATE', visitorId, exposureV)
     timeseriesAdd(FssiResources.DynamoDB.VisitorExposureTs,
       { 'visitor_id' : visitorId,
         'exposure' : json.dumps(exposureV.encode())})
@@ -48,7 +56,8 @@ def writeExperienceExposure(experienceId, exposureV):
 
 def publishSns(experienceId, exposureV):
     snsMessageBody = { 'experience_id' : experienceId,
-                        'exposure' : json.dumps(exposureV.encode())}
+                        'exposure' : exposureV.encode(),
+                        't': time.time()}
     mySnsClient = boto3.client('sns')
     response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.ExposureUpdates),
         Message=simplejson.dumps(snsMessageBody))
@@ -59,30 +68,35 @@ def publishSns(experienceId, exposureV):
 
 def lambda_handler(event, context):
     try:
-        snsRecord = event['Records'][0]['Sns']
-        messageDict = json.loads(snsRecord['Message'])
-        experienceState = ExperienceState(messageDict)
-        experienceOccupancy = getOccupancy(experienceState.experienceId_)
+        for record in event['Records']:
+            snsRecord = record['Sns']
+            messageDict = json.loads(snsRecord['Message'])
+            experienceState = ExperienceState(messageDict)
+            experienceOccupancy = getOccupancy(experienceState.experienceId_)
+            # experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
 
-        experienceAggregateExposure = ExposureVector(experienceState.emissionVector_)
-
-        # for each user in the experience -- update their exposure vector
-        experienceAggregate = []
-        for visitorId in experienceOccupancy:
-            # first -- retrieve current exposure vector
-            visitorExposure = getVisitorExposure(visitorId)
-            # now update exposure vector with current experience state
-            # print('VISITOR', visitorId)
-            # print('VISITOR EXPOSURE', visitorExposure)
-            # print('EXPERIENCE STATE', experienceState)
-            updatedExposure = updateExposure(visitorExposure, experienceState.emissionVector_)
-            # print('UPDATED VISITOR EXPOSURE', updatedExposure)
-            # save visitor exposure back to db
-            writeVisitorExposure(visitorId, updatedExposure)
-            experienceAggregate.append(updatedExposure)
-        # write aggregate experience exposure
-        writeExperienceExposure(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
-        publishSns(experienceState.experienceId_, ExposureVector.simpleAverage(experienceAggregate))
+            # for each user in the experience -- update their exposure vector
+            experienceAggregate = []
+            for visitorId in experienceOccupancy:
+                # first -- retrieve current exposure vector
+                visitorExposure = getVisitorExposure(visitorId)
+                # age exposure vector
+                visitorExposure.ageBy(ExposureAlpha)
+                # cull exposure vector
+                visitorExposure = visitorExposure.cull(CullAgeThreshold, CullIntensityThreshold)
+                # now update exposure vector with current experience state
+                # print('VISITOR', visitorId)
+                # print('VISITOR EXPOSURE', visitorExposure)
+                # print('EXPERIENCE STATE', experienceState)
+                updatedExposure = updateExposure(visitorExposure, experienceState.emissionVector_)
+                # print('UPDATED VISITOR EXPOSURE', updatedExposure)
+                # save visitor exposure back to db
+                writeVisitorExposure(visitorId, updatedExposure)
+                experienceAggregate.append(updatedExposure)
+            # write aggregate experience exposure
+            aggregate = ExposureVector.median(experienceAggregate)
+            writeExperienceExposure(experienceState.experienceId_, aggregate)
+            publishSns(experienceState.experienceId_, aggregate)
     except:
         type, err, tb = sys.exc_info()
         print('caught exception:', err)
