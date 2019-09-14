@@ -19,7 +19,8 @@ import sys,traceback
 profileName = 'fssi2019-participant'
 session = boto3.session.Session(profile_name=profileName)
 snsClient = session.client('sns')
-snsTopicName = 'fssi2019-sns-emission'
+snsTopicName = 'arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission' 
+#'fssi2019-sns-emission'
 
 def publishSns(msgBody):
 	try:
@@ -79,6 +80,15 @@ class EvolvingRandomTag:
 		
 if __name__ == "__main__":
 
+	import argparse
+	parser = argparse.ArgumentParser(description='Simulate emission vector.')
+	parser.add_argument('experience_id', metavar='experience_id', default='tactile', nargs='?',
+		help='fssi 2019 experience id string') 
+		
+	args = parser.parse_args()
+	
+	print("Simulating for %s." % args.experience_id) 
+
 	bag = [] 
 
 	while(True):
@@ -100,7 +110,7 @@ if __name__ == "__main__":
 #			print(tag)
 #		print()
 #		
-		emission = { "exhibit_id" : "tactile" ,	 "state": {}, "t" : time.time() }
+		emission = { "experience_id" : args.experience_id,	 "state": {}, "t" : time.time() }
 		for tag in bag: 
 			emission['state'][tag.tag] = {}
 			emission['state'][tag.tag]['sentiment'] = tag.sentiment
