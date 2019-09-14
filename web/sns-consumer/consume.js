@@ -181,7 +181,7 @@ window.setInterval(check, 500);
  var sts = new AWS.STS({
      region: "us-west-1",
      accessKeyId: "AKIA3AHVLAHEI4GM26O7",
-     secretAccessKey: "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",
+     secretAccessKey: "",
      DurationSeconds:"43200"  // 12 hours  TODO: auto-renew credentials
  });
 
