@@ -43,7 +43,7 @@ def lambda_handler(event, context):
                 userTags = {'userTags' : [{'keyword':k, 'intensity':v['intensity'], 'sentiment':v['sentiment']} for k,v in tags.items()]}
                 # userTags = { '_'+str(idx): {'keyword':k, 'intensity':v['intensity'], 'sentiment':v['sentiment']} for idx, (k,v) in enumerate(tags.items())}
             else:
-                userTags = tags
+                userTags = {'userTags': tags }
             userMeta = makeMediaMetaItem(uploadKey, FssiResources.S3Bucket.Ingest)
             userMeta['meta'] = userTags
             userMetaTable = dynamoDbResource.Table(FssiResources.DynamoDB.MediaUserMetaPreload)
