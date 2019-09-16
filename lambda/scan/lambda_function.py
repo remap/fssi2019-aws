@@ -39,7 +39,7 @@ def lambda_handler(event, context):
             latestEvent = e
 
     print("Debug: latestEvent: " + str(latestEvent))
-
+    messageExit = None
     # Figure out whether the event means that the visitor is entering the experience.
     if latestEvent == None:
         isEntering = True
@@ -63,7 +63,7 @@ def lambda_handler(event, context):
                 'experience_id': latestEvent['experience_id'],
                 'event': 'exit',
                 'confidence': Decimal(1.0) })
-
+            messageExit={"defualt": {"event": "exit", "experience_id": latestEvent['experience_id'], "visitor_id":visitor_id}} 
             occupancyResponse = occupancyTable.get_item(Key=
               { 'id': latestEvent['experience_id'] })
             if 'Item' in occupancyResponse:
@@ -91,7 +91,9 @@ def lambda_handler(event, context):
     else:
         message = message={"defualt": {"event": "exit", "experience_id": experience_id, "visitor_id":visitor_id}}
     response = mySnsClient.publish(TopicArn='arn:aws:sns:us-west-1:756428767688:fssi2019-sns-visitor-event', Message=json.dumps(message))
-
+    
+    if messageExit is not None:
+        response = mySnsClient.publish(TopicArn='arn:aws:sns:us-west-1:756428767688:fssi2019-sns-visitor-event', Message=json.dumps(messageExit))
 
     # Update the occupancy table for the experience based on isEntering.
     occupancyResponse = occupancyTable.get_item(Key={ 'id': experience_id })
