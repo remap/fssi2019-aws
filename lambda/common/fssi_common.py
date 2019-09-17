@@ -125,6 +125,11 @@ def guessMimeTypeFromFile(fileName):
     type = res.split(':')[-1].strip()
     return type
 
+def unmarshallAwsDataItem(awsDict):
+    boto3.resource('dynamodb')
+    deserializer = boto3.dynamodb.types.TypeDeserializer()
+    pyDict = {k: deserializer.deserialize(v) for k,v in awsDict.items()}
+    return pyDict
 
 ################################################################################
 # SNS HELPERS

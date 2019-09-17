@@ -72,6 +72,8 @@ def lambda_handler(event, context):
             snsRecord = record['Sns']
             messageDict = json.loads(snsRecord['Message'])
             experienceState = ExperienceState(messageDict)
+            timeseriesAdd(FssiResources.DynamoDB.ExperienceEmissionTs, {'experience_id': experienceState.experienceId_, 'state': json.dumps(experienceState.emissionVector_.encode())})
+
             experienceOccupancy = getOccupancy(experienceState.experienceId_)
             if not experienceOccupancy:
                 print('no occupancy in the space {}'.format(experienceState.experienceId_))
