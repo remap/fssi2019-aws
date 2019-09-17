@@ -63,6 +63,8 @@ def lambda_handler(event, context):
         xpEmission = ExperienceState(pyDict)
         print('experience {} last emission: {}'.format(xpEmission.experienceId_, xpEmission.emissionVector_))
 
+        # get identity info here
+
         raise ValueError('do processing here')
     except:
         type, err, tb = sys.exc_info()
