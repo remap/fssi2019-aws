@@ -70,6 +70,7 @@ class FssiResources():
         Visitor = "fssi2019-dynamodb-visitor"
         VisitorEventTs = "fssi2019-dynamodb-visitor_event_ts"
         VisitorExposureTs = "fssi2019-dynamodb-visitor_exposure_ts"
+        Location = "fssi2019-dynamodb-popuplocation"
 
         MediaUserMetaPreload = "fssi2019-dynamodb-media-user-meta-preload"
         MediaUserMeta = "fssi2019-dynamodb-media-user-meta"
