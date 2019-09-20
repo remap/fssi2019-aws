@@ -6,6 +6,7 @@ import os
 from fssi_common import *
 #import simplejson
 import time
+import random
 
 def getOccupancy(experienceId):
     # get latest occupancy for the experience
@@ -31,6 +32,24 @@ def getVisitorIdentity(visitorId):
         return result['Item']['ident_begin']
     return None
 
+def getVisitorTimestamp(visitorId):
+    response = timeseriesGetLatestForKey(FssiResources.DynamoDB.VisitorEventTs,
+      keyName='visitor_id', keyValue=visitorId)
+    print( response)
+    return response['timestamp']
+
+
+def get_location():
+    db = boto3.resource(
+        'dynamodb',
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        aws_session_token=SESSION_TOKEN
+    )
+    locationTable = db.Table('fssi2019-dynamodb-popuplocation')
+    resp = locationTable.scan()
+    return resp['Items'][0]['id']
+
 def publishSns(experienceId, exposureV):
     snsMessageBody = { 'experience_id' : experienceId,
                        'exposure' : exposureV.encode(),
@@ -46,41 +65,140 @@ def listTags(obj):
     if obj is not None:
         return list(obj.keys())
     return None
-def extractdata(profiles):
+
+def most_dict(dict, n):
     most = []
+    vs = list(dict.values())
+    ks = list(dict.keys())
+    for i in range(n):
+        most.append(ks[vs.index(max(vs))])
+        vs[vs.index(max(vs))] = 0
+    return most
+
+def extractdata(profiles):
     colors = []
     result = []
     total = {}
-    for key in listTags(profiles[0]):
-        if key == 'color_val':
-            for p in profiles:
-                if p is not None:
+    for p in profiles:
+        if p is not None:
+            # print(listTags(p))
+            for key in listTags(p):
+                if key == 'color_val':
                     colors.append(p['color_val'])
-        else:
-            total[key] = 0
-            for p in profiles:
-                if p is not None and key in p:
-                    # print(p[str(key)])
-                    total[str(key)] = total[str(key)] + p[str(key)]['intensity']
-                # print (key +' '+ str(total[str(key)]))
-    vs = list(total.values())
-    ks = list(total.keys())
-    most.append(ks[vs.index(max(vs))])
-    vs[vs.index(max(vs))] = 0
-    most.append(ks[vs.index(max(vs))])
-    vs[vs.index(max(vs))] = 0
-    most.append(ks[vs.index(max(vs))])
-    vs[vs.index(max(vs))] = 0
-    most.append(ks[vs.index(max(vs))])
+                else:
+                    if str(key) in total:
+                        total[str(key)] = total[str(key)] + p[str(key)]['intensity']
+                    else:
+                        total[str(key)] = p[str(key)]['intensity']
+    most = most_dict(total,4)
     result.append(most)
     result.append(colors)
     return result
 
+def cuisines():
+    dict = {
+           'Chinese' : [ 'peanut-oil', 'corn-starch','sesame oil','oyster sauce', 'hoisin sauce'],
+           'French' : ['butter', 'all-purpose-flour', 'eggs', 'butter', 'shallots'],
+           'Mediterranean' : ['feta-cheese-crumbles','dried-oregano', 'cucumber', 'fresh lemon juice', 'feta cheese'],
+           'Indian' : ['green-chilies','turmeric', 'cumin', 'ground turmeric', 'garam masala'],
+           'Italian' : ['ground-black-pepper', 'olive-oil', 'extra virgin olive oil', 'fresh basil', 'parmesan'],
+           'Japanese' : ['scallions','soy-sauce', 'rice vinegar', 'mirin', 'sake'],
+           'Korean' : ['sesame-oil', 'sesame-seeds', 'toasted sesame seeds', 'kimchi', 'gochujang'],
+           'Mexican' : ['avocado', 'flour-tortillas', 'black beans', 'salsa', 'corn tortillas'],
+           'Southern_us' : ['milk', 'baking-powder', 'baking soda','vanilla extract',  'buttermilk'],
+           'Thai' : ['lime-juice', 'peanuts', 'coconut milk', 'fish sauce', 'lemongrass'],
+    }
+    return dict
+
+def food_data(profiles):
+    total = []
+    cuisinelist = cuisines().keys()
+    for p in profiles:
+        if p is not None:
+            dict = {}
+            for key in listTags(p):
+                if key in cuisinelist:
+                    dict[str(key)] = p[str(key)]['intensity']
+            total.append(dict) 
+    return total  
+
+def get_ingreds(li):
+    result = []
+    for dict in li:
+        most = most_dict(dict, min(len(dict),3))
+        for key in most:
+            result.append(map(key,dict[str(key)]))
+    return result
+
+def map(cuisine, intens):
+    ingred = 'NULL'
+    dict = cuisines()
+
+    i = int(((intens*10)-Decimal(0.01))//2)
+    ingred = dict[cuisine][i]
+    return ingred
+                                                                                                                                                             
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last =0.0
+    while last <len(seq):
+       out.append(seq[int(last):int(last+avg)])
+       last += avg
+    return out
+
+def menu(li):
+    with open('data') as json_file:
+        data = json.load(json_file, strict=False)
+    result = []
+    print (len(list(data.keys())))
+    for item in li:
+        if len(item) == 1:
+            insert = 'butter'
+            item.append(insert)
+        item.sort()
+        dish = data[' '.join(item)][random.randint(0,9)]
+        # print(dish)
+        result.append(dish)
+    return result
+
+def make_emission(bag):
+    emission = {"experience_id" : 'corporeal', "state": {}, "t": time.time()}
+    for tag in bag:
+        emission['state'][tag] = {}
+        emission['state'][tag]['sentiment'] = 0.5
+        emission['state'][tag]['intensity'] = 0.5
+    mySnsClient = boto3.client('sns')
+    response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.Emission),
+        Message=simplejson.dumps(snsMessageBody))
+    if response and type(response) == dict and 'MessageId' in response:
+        return
+    else:
+        print("unable to send SNS message: ", response)
+
 def lambda_handler(event, context):
-    xpOccupancy = getOccupancy('offboard')
+    loc = get_location()
+    default = {
+        'color' : [{'r': Decimal('0'), 'g': Decimal('0'), 'b': Decimal('0')}],
+	'friend': ['sobremesa2028','sobremesa2028','sobremesa2028','sobremesa2028'],
+	'menu' : ['Ask about daily specials', 'Ask about daily specials', 'Ask about daily specials'],
+	'occ': 0,
+        'location': loc
+
+    }
+    xpOccupancy = getOccupancy('corporeal')
+    if xpOccupancy is None:
+        print("no occupants")
+        # print(getVisitorTimestamp('Bob'))
+        return default
     visitorProfiles = []
     tagli = []
     num = 0
+    timestamps = {}
+    """for userId in xpOccupancy:
+        timestamps[userId] = getVisitorTimestamp(userId)
+    finalfour = (most_dict(timestamps)).keys()
+    print(finalfour) """
     for userId in xpOccupancy:        
         vId = getVisitorIdentity(userId)
         visitorProfiles.append(vId)
@@ -89,12 +207,17 @@ def lambda_handler(event, context):
     # blair = getVisitorIdentity('Blair ')
     # tagli = (listTags(blair))
     profData = extractdata(visitorProfiles)
-    print(profData[1])
+    ingredlist = chunkIt(get_ingreds(food_data(visitorProfiles)),3)
+    screenmenu = menu(ingredlist)
+    if not screenmenu:
+        screenmenu =  ['Ask about daily specials', 'Ask about daily specials', 'Ask about daily specials']
+    print(screenmenu)
     returnPackage = {
 	'color' : profData[1],
 	'friend': profData[0],
-	'menu' : ['rice beans tacos', 'sugar butter flour', 'cheese butter pasta'],
-	'occ': num
+	'menu' : screenmenu,
+	'occ': num,
+        'location': loc,
     }
     # returnPackage = json.dumps(message)
     """
