@@ -50,17 +50,51 @@ def get_location():
     resp = locationTable.scan()
     return resp['Items'][0]['id']
 
-def publishSns(experienceId, exposureV):
-    snsMessageBody = { 'experience_id' : experienceId,
-                       'exposure' : exposureV.encode(),
-                       't': time.time()}
-    mySnsClient = boto3.client('sns')
-    response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.ExposureUpdates),
-        Message=simplejson.dumps(snsMessageBody))
-    if response and type(response) == dict and 'MessageId' in response:
-        return
-    else:
-        print("unable to send SNS message: ", response)
+CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
+
+stsConnection = boto3.client('sts')
+acctB = stsConnection.assume_role(
+    RoleArn=CROSS_ACCT_ACCESS_ROLE,
+    RoleSessionName="cross_acct_access"
+)
+
+ACCESS_KEY = acctB['Credentials']['AccessKeyId']
+SECRET_KEY = acctB['Credentials']['SecretAccessKey']
+SESSION_TOKEN = acctB['Credentials']['SessionToken']
+
+snsClient = boto3.client(
+    'sns',
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY,
+    aws_session_token=SESSION_TOKEN
+)
+
+def publishSns(msgBody):
+    response = snsClient.publish(TopicArn="arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission", Message=msgBody)
+    """try:
+        topicList = snsClient.list_topics()
+        if topicList:
+            topicFound = False
+	    for topicDict in topicList['Topics']:
+				arn = topicDict['TopicArn']
+				if snsTopicName in arn:
+					topicFound = True
+					break
+			if topicFound:
+				#print('topic found by name. ARN: ', arn)
+				response = snsClient.publish(TopicArn=arn, Message=msgBody)
+				if response and type(response) == dict and 'MessageId' in response:
+					return response
+			else:
+				raise ValueError('topic {} was not found'.format(snsTopicName))
+	except:
+		print('exception while publishing SNS', sys.exc_info()[0])
+		traceback.print_exc(file=sys.stdout)
+    """
+
+
+
+
 def listTags(obj):
     if obj is not None:
         return list(obj.keys())
@@ -120,6 +154,8 @@ def food_data(profiles):
                 if key in cuisinelist:
                     dict[str(key)] = p[str(key)]['intensity']
             total.append(dict) 
+    print(total)
+    make_emission(total)
     return total  
 
 def get_ingreds(li):
@@ -162,12 +198,19 @@ def menu(li):
         result.append(dish)
     return result
 
-def make_emission(bag):
+def make_emission(li):
     emission = {"experience_id" : 'corporeal', "state": {}, "t": time.time()}
-    for tag in bag:
-        emission['state'][tag] = {}
-        emission['state'][tag]['sentiment'] = 0.5
-        emission['state'][tag]['intensity'] = 0.5
+    for dict in li:
+        bag = list(dict.keys())
+        print(bag)
+        for tag in bag: 
+            emission['state'][tag] = {}
+            emission['state'][tag]['sentiment'] = 0.5
+            emission['state'][tag]['intensity'] = str(dict[tag])
+    print(emission)
+    emissionVector = json.dumps(emission, sort_keys=True, indent=4)
+    publishSns(emissionVector)
+    '''
     mySnsClient = boto3.client('sns')
     response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.Emission),
         Message=simplejson.dumps(snsMessageBody))
@@ -175,7 +218,7 @@ def make_emission(bag):
         return
     else:
         print("unable to send SNS message: ", response)
-
+   '''
 def lambda_handler(event, context):
     loc = get_location()
     default = {
@@ -212,6 +255,7 @@ def lambda_handler(event, context):
     if not screenmenu:
         screenmenu =  ['Ask about daily specials', 'Ask about daily specials', 'Ask about daily specials']
     print(screenmenu)
+
     returnPackage = {
 	'color' : profData[1],
 	'friend': profData[0],
