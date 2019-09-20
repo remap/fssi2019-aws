@@ -187,13 +187,16 @@ def menu(li):
     with open('data') as json_file:
         data = json.load(json_file, strict=False)
     result = []
-    print (len(list(data.keys())))
     for item in li:
         if len(item) == 1:
-            insert = 'butter'
+            c = cuisines()
+            insert = c[list(cuisines().keys())[random.randint(0,9)]][3]
             item.append(insert)
         item.sort()
-        dish = data[' '.join(item)][random.randint(0,9)]
+        try:
+            dish = data[' '.join(item)][random.randint(0,9)]
+        except: 
+            dish = data[list(data.keys())[random.randint(0,2000)]][random.randint(0,9)]
         # print(dish)
         result.append(dish)
     return result
