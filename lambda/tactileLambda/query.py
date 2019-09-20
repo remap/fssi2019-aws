@@ -4,9 +4,9 @@ import math
 import random
 
 queryUrl = 'https://search-fssi2019-elasticsearch-stage-dk3gt2igpfx3nl7kkl6l6sppay.us-west-1.es.amazonaws.com/image/_search'
-queryPageSize = 20
+queryPageSize = 50
 queryPageFrom = 0
-limitHits = 10
+limitHits = 50
 url = queryUrl
 
 class ElasticSearchFields:
@@ -127,15 +127,20 @@ session=requests.Session()
 session.headers={"content-type": "application/json"}
 
 #queryDat = op('query')
-queryList = [{'keyword': 'bird', 'confidence_min': 90, 'confidence_max': 100}]
+queryList = [{'keyword': 'light', 'confidence_min': 90, 'confidence_max': 100}]
 
 #queryType = 'should' if me.parent().par.Findany == 1 else 'must'
-queryType = 'should'
+queryType = 'must'
 query=rekognitionQuery(queryList, queryType)
 debug_query = json.dumps(query, indent=4)
 
 results = runQuery(session,query)
-print(parseResult(results))
+tags = []
+parsed = parseResult(results)
+
+print(parsed)
+#tags = set([j[0][0] for j in [i[1] for i in parsed]])
+#print(tags)
 '''
 
 

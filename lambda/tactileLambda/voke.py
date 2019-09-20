@@ -5,7 +5,7 @@ session = boto3.session.Session(profile_name='fssi2019-xacc-resource-access')
 client = session.client('lambda')
 
 payload = {
-    'lane': 'image', # can be one of: image, text
+    'lane': 'text', # can be one of: image, text
     'occupants': ['alice', 'bob'],
     'temperature': -1  # 3 to 9, 3 is coherent but boring, 9 is crazy but interesting
 }
