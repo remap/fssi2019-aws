@@ -11,6 +11,7 @@ from query import *
 
 
 def get_location():
+    return 'mid-city'
     db = boto3.resource(
         'dynamodb',
         aws_access_key_id=ACCESS_KEY,
@@ -19,6 +20,7 @@ def get_location():
     )
     locationTable = db.Table('fssi2019-dynamodb-popuplocation')
     resp = locationTable.scan()
+    
     return resp['Items'][0]['id']
 
 
@@ -38,33 +40,110 @@ def getVisitorExposure(visitorId):
         return ExposureVector(json.loads(response['Items'][0]['exposure']['S']))
     return ExposureVector({})
 
+if __name__ == '__main__':
+    profileName = 'fssi2019-xacc-resource-access'
+    session = boto3.session.Session(profile_name=profileName)
+    snsClient = session.client('sns')
+    snsTopicName = 'arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission' 
+else:
+
+    CROSS_ACCT_ACCESS_ROLE = "arn:aws:iam::756428767688:role/fssi2019-xacc-intraorg-resource-access"
+
+    stsConnection = boto3.client('sts')
+    acctB = stsConnection.assume_role(
+        RoleArn=CROSS_ACCT_ACCESS_ROLE,
+        RoleSessionName="cross_acct_access"
+    )
+
+    ACCESS_KEY = acctB['Credentials']['AccessKeyId']
+    SECRET_KEY = acctB['Credentials']['SecretAccessKey']
+    SESSION_TOKEN = acctB['Credentials']['SessionToken']
+
+    snsClient = boto3.client(
+        'sns',
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        aws_session_token=SESSION_TOKEN
+    )
+
+
+
+
+def publishSns(msgBody):
+    response = snsClient.publish(TopicArn='arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission', Message=msgBody)
+    try:
+        topicList = snsClient.list_topics()
+        if topicList:
+            topicFound = False
+            for topicDict in topicList['Topics']:
+                arn = topicDict['TopicArn']
+                if snsTopicName in arn:
+                    topicFound = True
+                    break
+            if topicFound:
+                #print('topic found by name. ARN: ', arn)
+                response = snsClient.publish(TopicArn='arn:aws:sns:us-west-1:756428767688:fssi2019-sns-emission', Message=msgBody)
+                if response and type(response) == dict and 'MessageId' in response:
+                    return response
+            else:
+                raise ValueError('topic {} was not found'.format(snsTopicName))
+    except:
+        print('exception while publishing SNS', sys.exc_info()[0])
+        traceback.print_exc(file=sys.stdout)
+
+'''
 def publishSns(experienceId, exposureV):
-    snsMessageBody = { 'experience_id' : experienceId,
-                        'exposure' : exposureV.encode(),
-                        't': time.time()}
+    snsMessageBody = exposureV
     mySnsClient = boto3.client('sns')
-    response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.ExposureUpdates),
+    response = mySnsClient.publish(TopicArn=getSnsTopicByName(FssiResources.Sns.Emission),
         Message=simplejson.dumps(snsMessageBody))
     if response and type(response) == dict and 'MessageId' in response:
         return
     else:
         print("unable to send SNS message: ", response)
+'''
 
 def paintingTag(tags):
     toReturn = []
     if 'religious' in tags:
-        toReturn.append(random.choice(['church', 'light']))
+        toReturn.append('church')
     if 'indoor' in tags:
-        toReturn.append(random.choice(['church', 'light']))
+        toReturn.append('indoors')
     if 'graffiti' in tags:
-        toReturn.append(random.choice(['church', 'light']))
+        toReturn.append('graffiti')
     if 'contemporary' in tags:
-        toReturn.append(random.choice(['modern art']))
+        toReturn.append('modern art')
     if 'landscape' in tags:
-        toReturn.append(random.choice(['landscape']))
+        toReturn.append('landscape')
     if 'environmental' in tags:
-        toReturn.append(random.choice(['nature']))
+        toReturn.append('nature')
     return toReturn
+
+def getTopFoods(tags):
+    if not tags:
+        return None
+    toReturn = []
+    cuisine_types = ['French', 'Thai', 'Indian', 'Chinese', 'Italian', 'Korean', 'Mexican','American', 'Mediterranean']
+    for cuisine in cuisine_types:
+        if cuisine in tags and tags[cuisine]['intensity'] == 1:
+            toReturn.append(cuisine)
+    return toReturn
+
+
+def getTopFoodUrls(tags):
+    if not tags:
+        return None
+    toReturn = ""
+    cuisine_types = [['French',1422], ['Thai',1456], ['Indian',1368], ['Chinese',1422],  ['Italian',769], ['Mexican', 846]]#'Korean''','American', 'Mediterranean',  ]
+    for cuisine in cuisine_types:
+        if cuisine[0] in tags and tags[cuisine[0]]['intensity'] == 1:
+            toReturn = toReturn + '~?' + getCuisineUrl(cuisine[0],cuisine[1])
+    return toReturn
+
+def getCuisineUrl(cuisine,size):
+    index = random.randint(1,size)
+    return 'https://fssi2019-jamie-photos.s3-us-west-1.amazonaws.com/cuisine/{}/{}.jpg'.format(cuisine.lower(),index)
+
 
 
 def recommendImage(occupants):
@@ -75,60 +154,84 @@ def recommendImage(occupants):
     visitorExposures = []
  
     veeps = []
+    
+    userTags = ''
 
-    if xpOccupancy:
-        for userId in xpOccupancy:
+    #print(xpOccupancy)
 
-            vId = getVisitorIdentity(userId)
-            vExp = getVisitorExposure(userId)
-            if vId:
-                veeps.append(vId)
-            #veeps.append(vExp)
-            visitorExposures.append(vExp) 
+    for userId in xpOccupancy:
+        vId = getVisitorIdentity(userId)
+        vExp = getVisitorExposure(userId)
+        if vId:
+            for tg in vId:
+                userTags = '{}~?{}'.format(userTags,tg)
+            veeps.append(vId)
+        #veeps.append(vExp)
+        visitorExposures.append(vExp) 
             
     avg = {}
-    for v in veeps[0:4]:
+    for v in veeps[0:8]:
         avg = {**avg,**v}  
 
-    print(avg)      
-
+    #print(avg)      
+    
     #avg = EmissionVector.simpleAverage(veeps)
     #tags = sorted(avg.items(), key=lambda x: x[1].intensity_,reverse=True)
     #print(tags)
 
 
-    allTags = []
-    allTags.append(paintingTag(tags))
+    #return allTags
+    allTags = paintingTag(avg)
+    allTags.extend(getTopFoods(avg))
 
-    if avg['traffic']['intensity'] > .8:
+    if avg['traffic']['intensity'] > .7:
         allTags.append(random.choice(['Transportation', 'Road', 'Building', 'Bus', 'Traffic Light', 'Machine', 'Truck', 'Vehicle', 'Car', 'Freeway', 'Street']))
+    elif avg['traffic']['intensity'] < .3:
+        allTags.append(random.choice(['Sidewalk, Human, Person, Bike, Bicycle, Subway']))
+       
+    if avg['adventure']['intensity'] > .5:
+        allTags.append(random.choice(['Sea', 'Outdoors', 'Human', 'Adventure', 'Person']))
 
 
+    print(allTags)
 
+    imageUrls = ''
+    emissions = []
 
-    for tag in tags:
-        search = random.choice(tags)
-        print(search)
-        results = tagQuery(search)
+    for tag in allTags:
+        results = tagQuery(tag)
         if results:
-            primeResult = random.choice(results)
-            
-            emissions = []
-            for emit in primeResult[1]:
-                emissions.append(emit[0])
-            
-            emission = { "experience_id" : xpId,   "state": {}, "t" : time.time() }
-            for emit in emissions: 
-                emission['state'][emit] = {}
-                emission['state'][emit]['sentiment'] = .5
-                emission['state'][emit]['intensity'] = .5
-            emissionVector = json.dumps(emission, sort_keys=True, indent=4)
-            print('hello')
-            print(emissionVector)
-            publishSns(xpId,emissionVector)
-            
+            choice = random.sample(results,3)
+            for img in choice:
+                imageUrls = '{}~?{}'.format(imageUrls,img[0])
+                for emit in img[1][1:10]:
+                    emissions.append(emit)
 
-            return (primeResult[0], emissions)
+    imageUrls = imageUrls + getTopFoodUrls(avg) + getTopFoodUrls(avg) 
+  
+    imageUrls = imageUrls + '&'
+    for emit in emissions:
+        allTags.append(emit[0])
+        imageUrls = imageUrls + '~?' + emit[0]
+
+
+    emission = { "experience_id" : xpId,   "state": {}, "t" : time.time() }
+    for tag in allTags: 
+        emission['state'][tag] = {}
+        emission['state'][tag]['sentiment'] = .5
+        emission['state'][tag]['intensity'] = .5
+    emissionVector = json.dumps(emission, sort_keys=True, indent=4)
+
+    publishSns(emissionVector)
+
+    imageUrls = imageUrls + '&'
+
+    for tag in allTags:
+        imageUrls = '{}~?{}'.format(imageUrls,tag)
+
+    return imageUrls + userTags
+
+
 
 def emitText(textString):
 
@@ -165,13 +268,13 @@ def recommendText(temperature):
         temperature = random.randint(4,9)
 
     itemname = '{}_{}_{}.txt'.format(get_location().lower(),temperature,random.randint(1,1001))
+    print(itemname)
     obj = s3.Object('la-lyric-poems', itemname)
-    body = obj.get()['Body'].read().decode("utf-8").replace('\n',',\n').replace('\t','')
+    body = obj.get()['Body'].read().decode("utf-8").replace('\n',',\n').replace('\t','') 
     #emitText(body)
 
 
     return body
-
 
 
 
@@ -280,7 +383,7 @@ def lambda_handler(event, context):
 if __name__ == '__main__':
 
     payload = {
-    'lane': 'image', # can be one of: image, tag, audio, text
+    'lane': 'text', # can be one of: image, tag, audio, text
     'occupants': ['alice', 'bob'],
     'temperature': 6
     }
@@ -289,14 +392,16 @@ if __name__ == '__main__':
     occupants = getOccupancy('tactile')
     print(occupants)
     for id in occupants:
+        
         print(getVisitorIdentity(id))
+        print(getTopFoods(getVisitorIdentity(id)))
     print('=====')
     print('=====')
     for id in occupants:
         print(getVisitorExposure(id))
     '''
-    
-    print(lambda_handler(payload, None))
+    print('\n')
+    print(lambda_handler(payload, None).replace('&','\n\n'))
 
 
 
